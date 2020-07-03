@@ -1,24 +1,15 @@
 import React from 'react';
-import logo from './images/eldsal-logo.svg';
+
+import { BrowserRouter as Router } from "react-router-dom";
+// App Routes
+import Routes from "./Routes";
 
 function App() {
+
   return (
-    <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.js</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://eldsal.se"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Welcome to Eldsäl's membership site
-        </a>
-      </header>
-    </div>
+    <Router basename={process.env.PUBLIC_URL}>
+      <Routes />
+    </Router>
   );
 }
 
