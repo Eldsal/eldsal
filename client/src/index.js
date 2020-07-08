@@ -6,14 +6,15 @@ import App from "./App";
 import * as serviceWorker from "./serviceWorker";
 
 ReactDOM.render(
-  <Auth0Provider
-    domain="dev-eldsal.eu.auth0.com"
-    clientId="NU69FpPswLd6akcFnlYwqM4HoFmNg3Ny"
-    redirectUri="http://localhost:3002"
-  >
-    <App />
-  </Auth0Provider>,
-  document.getElementById("root")
+    <Auth0Provider
+        domain="dev-eldsal.eu.auth0.com"
+        clientId="NU69FpPswLd6akcFnlYwqM4HoFmNg3Ny"
+        redirectUri="http://localhost:3000/Start"
+        returnTo="http://localhost:3000/Login"
+    >
+        <App />
+    </Auth0Provider>,
+    document.getElementById("root")
 );
 
 // If you want your app to work offline and load faster, you can change
