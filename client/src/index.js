@@ -1,13 +1,18 @@
 import React from "react";
 import ReactDOM from "react-dom";
 import "./styles/app.scss";
+import { Auth0Provider } from "@auth0/auth0-react";
 import App from "./App";
 import * as serviceWorker from "./serviceWorker";
 
 ReactDOM.render(
-  <React.StrictMode>
+  <Auth0Provider
+    domain="dev-eldsal.eu.auth0.com"
+    clientId="NU69FpPswLd6akcFnlYwqM4HoFmNg3Ny"
+    redirectUri="http://localhost:3002"
+  >
     <App />
-  </React.StrictMode>,
+  </Auth0Provider>,
   document.getElementById("root")
 );
 
