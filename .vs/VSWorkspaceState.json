@@ -1,0 +1,14 @@
+{
+  "ExpandedNodes": [
+    "",
+    "\\client",
+    "\\client\\src",
+    "\\client\\src\\components",
+    "\\client\\src\\components\\Common",
+    "\\client\\src\\components\\Pages",
+    "\\client\\src\\hooks",
+    "\\client\\src\\hooks\\api"
+  ],
+  "SelectedNode": "\\client\\.env",
+  "PreviewInSolutionExplorer": false
+}
