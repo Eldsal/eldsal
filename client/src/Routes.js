@@ -9,8 +9,8 @@ const StartPage = lazy(() => import("./components/Pages/StartPage"));
 const Routes = ({ location }) => (
     <Suspense fallback={<PageLoader />}>
         <Switch location={location}>
-            <Route path="/Login" component={waitFor(LoginPage)} />
-            <Route path="/Start" component={waitFor(StartPage)} />
+            <Route path="/login" component={waitFor(LoginPage)} />
+            <Route path="/start" component={waitFor(StartPage)} />
             <Route path="/" component={waitFor(LoginPage)} />
         </Switch>
     </Suspense>

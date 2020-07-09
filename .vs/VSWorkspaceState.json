@@ -2,13 +2,13 @@
   "ExpandedNodes": [
     "",
     "\\client",
-    "\\client\\src\\api",
+    "\\client\\src",
     "\\client\\src\\components",
     "\\client\\src\\components\\Common",
     "\\client\\src\\components\\Pages",
-    "\\client\\src\\hooks\\api",
-    "\\client\\src\\Login"
+    "\\client\\src\\hooks",
+    "\\client\\src\\hooks\\api"
   ],
-  "SelectedNode": "\\client\\yarn.lock",
+  "SelectedNode": "\\client\\.env",
   "PreviewInSolutionExplorer": false
 }

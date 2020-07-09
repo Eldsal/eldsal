@@ -7,10 +7,12 @@ import * as serviceWorker from "./serviceWorker";
 
 ReactDOM.render(
     <Auth0Provider
-        domain="dev-eldsal.eu.auth0.com"
-        clientId="NU69FpPswLd6akcFnlYwqM4HoFmNg3Ny"
-        redirectUri="http://localhost:3000/Start"
-        returnTo="http://localhost:3000/Login"
+        domain={process.env.REACT_APP_AUTH0_DOMAIN}
+        clientId={process.env.REACT_APP_AUTH0_CLIENT_ID}
+        redirectUri={window.location.origin}
+        returnTo={window.location.origin}
+        audience={process.env.REACT_APP_AUDIENCE}
+        scope="read:current_user update:current_user_metadata"
     >
         <App />
     </Auth0Provider>,
