@@ -116,6 +116,9 @@ dist
 # production
 /build
 
+# Visual Studio
+.vs
+
 # misc
 .DS_Store
 .env.local
