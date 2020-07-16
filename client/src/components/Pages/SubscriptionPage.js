@@ -4,7 +4,7 @@ import Button from "reactstrap/lib/Button";
 import SiteHeader from "../Common/SiteHeader";
 import logo from "../../images/eldsal-logo.svg";
 
-const StartPage = () => {
+const SubscriptionPage = () => {
 
     const { user, isAuthenticated } = useAuth0();
 
@@ -15,10 +15,10 @@ const StartPage = () => {
     return (
         <div className="App">
             <SiteHeader />
-            <h1>Start</h1>
-            <p>Here is a summary of the user's profile info and membership status</p>
+            <h1>Subscription</h1>
+            <p>Here the user may manage the membership subscriptions for membership fee and house access fee.</p>
         </div>
     );
 };
 
-export default StartPage;
+export default SubscriptionPage;

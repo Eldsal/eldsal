@@ -4,7 +4,7 @@ import Button from "reactstrap/lib/Button";
 import SiteHeader from "../Common/SiteHeader";
 import logo from "../../images/eldsal-logo.svg";
 
-const StartPage = () => {
+const ProfilePage = () => {
 
     const { user, isAuthenticated } = useAuth0();
 
@@ -15,10 +15,10 @@ const StartPage = () => {
     return (
         <div className="App">
             <SiteHeader />
-            <h1>Start</h1>
-            <p>Here is a summary of the user's profile info and membership status</p>
+            <h1>Profile</h1>
+            <p>Here the user can view and edit profile information</p>
         </div>
     );
 };
 
-export default StartPage;
+export default ProfilePage;
