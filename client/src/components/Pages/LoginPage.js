@@ -23,17 +23,17 @@ const LoginPage = () => {
 
     return (
         <div className="App">
-            <div class="mt-4">
-                <img class="mb-4" src={logo} alt="logo" height="200" />
+            <div className="mt-4">
+                <img className="mb-4" src={logo} alt="logo" height="200" />
                 <h1>
                     Welcome to Eldsäl
                 </h1>
-                <p class="Login-text">
+                <p className="Login-text">
                     Welcome to the membership site for the Eldsäl association in Göteborg.<br/>
                     Login to manage your membership and payments.
                 </p>
             </div>
-            <div class="mt-4">
+            <div className="mt-4">
                 <LoginButton />
             </div>
         </div>

@@ -36,11 +36,11 @@ const SiteHeader = (props) => {
     }
 
     return (
-        <header class="App-header">
+        <header className="App-header">
             <Navbar color="light" light expand="md">
                 <NavbarBrand href="/">
                     <img src={logo} className="App-logo" alt="Eldsäl" />
-                    <span class="pl-2">Eldsäl</span>
+                    <span className="pl-2">Eldsäl</span>
                 </NavbarBrand>
                 <NavbarToggler onClick={toggle} />
                 <Collapse isOpen={isOpen} navbar>
@@ -65,10 +65,10 @@ const SiteHeader = (props) => {
                                     tag="span"
                                     data-toggle="dropdown"
                                 >
-                                    <img class="App-avatar" src={user.picture} alt={user.name} />
+                                    <img className="App-avatar" src={user.picture} alt={user.name} />
                                 </DropdownToggle>
                                 <DropdownMenu
-                                    right="true">
+                                    right={true}>
                                     <DropdownItem>{user.name}</DropdownItem>
                                     <DropdownItem divider />
                                     <DropdownItem><NavLink color="link" href="/profile">Profile</NavLink></DropdownItem>

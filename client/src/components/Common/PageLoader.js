@@ -1,7 +1,7 @@
 import React from "react";
 
 const PageLoader = () => (
-  <div class="App-loader">
+  <div className="App-loader">
     Loading...
   </div>
 );

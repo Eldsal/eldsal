@@ -6,13 +6,15 @@ import App from "./App";
 import * as serviceWorker from "./serviceWorker";
 
 ReactDOM.render(
+    // We probably don't need "useRefreshTokens" in public setup, I use it now for refreshing tokens when we change scopes needed during development /DO
     <Auth0Provider
         domain={process.env.REACT_APP_AUTH0_DOMAIN}
         clientId={process.env.REACT_APP_AUTH0_CLIENT_ID}
         redirectUri={window.location.origin}
         returnTo={window.location.origin}
         audience={process.env.REACT_APP_AUDIENCE}
-        scope="read:current_user update:current_user_metadata"
+        scope="read:current_user update:current_user read:current_user_metadata update:current_user_metadata read:users update:users update:users_app_metadata"
+        useRefreshTokens="true" 
     >
         <App />
     </Auth0Provider>,

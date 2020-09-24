@@ -1,5 +1,5 @@
 {
-  "name": "Eldsal",
+  "name": "eldsal",
   "version": "1.0.0",
   "description": "The Eldsäl community membership site.",
   "main": "index.js",
@@ -20,7 +20,15 @@
     "cors": "^2.8.5",
     "dotenv": "^8.2.0",
     "express": "^4.17.1",
+    "express-jwt": "^6.0.0",
+    "express-jwt-authz": "^2.4.1",
     "heroku-ssl-redirect": "^0.0.4",
-    "mongoose": "^5.9.10"
+    "http-proxy-agent": "^4.0.1",
+    "https-proxy-agent": "^5.0.0",
+    "jwks-rsa": "^1.10.0",
+    "mongoose": "^5.9.10",
+    "node-fetch": "^2.6.1",
+    "node-patch": "0.0.1",
+    "react-use": "^15.3.4"
   }
 }
