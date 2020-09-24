@@ -6,7 +6,7 @@ import logo from "../../images/eldsal-logo.svg";
 
 const StartPage = () => {
 
-    const { user, isAuthenticated } = useAuth0();
+    const { user, isAuthenticated, getAccessTokenSilently } = useAuth0();
 
     if (!isAuthenticated) {
         return <div />;
