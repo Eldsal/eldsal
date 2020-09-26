@@ -5,6 +5,7 @@ import Button from "reactstrap/lib/Button";
 import SiteHeader from "../Common/SiteHeader";
 import axios from "axios";
 import Axios from "axios";
+import { Redirect } from 'react-router-dom'
 
 const ProfilePage = () => {
 
@@ -84,12 +85,14 @@ const ProfilePage = () => {
         }
 
         // !!! Name can't be updated using SSP access token (must be fixed in backend)
+        /*
         userArgument = {
             user_metadata: {
                 given_name: givenName,
                 family_name: familyName,
             }
         }
+        */
 
         //const url = `${process.env.REACT_APP_API}users/${user.sub}`;
         // Using our own API
@@ -119,8 +122,9 @@ const ProfilePage = () => {
                 });
     }
 
-    if (!isAuthenticated)
-        return (<div />);
+    if (!isAuthenticated) {
+        return <div />
+    }
 
     return (
         <div className="App">

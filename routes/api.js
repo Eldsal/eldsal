@@ -5,13 +5,43 @@ const jwtAuthz = require('express-jwt-authz');
 const jwksRsa = require('jwks-rsa');
 const fetch = require('node-fetch');
 const axios = require('axios');
-
+var AuthenticationClient = require('auth0').AuthenticationClient;
+var ManagementClient = require('auth0').ManagementClient;
 
 router.get("/test", (req, res) => {
     return res.status(200).json({ success: true })
 });
 
 module.exports = router;
+
+function getManagementClient() {
+
+    var auth0 = new AuthenticationClient({
+        domain: 'eldsal.eu.auth0.com',
+        clientId: 'p4PqUsM5H7QS81byl44b4rfOXAciYLHN',
+        clientSecret: 'st6hdmebqw0qYQshC5eaOrHOO4ufQQoP0nWlWSaq07jOQfD4FEa8GrBi9fotrfY1'
+    });
+
+    auth0.clientCredentialsGrant(
+        {
+            audience: 'https://login.eldsal.se/api/v2/',
+            scope: 'read:users update:users'
+        },
+        function (err, response) {
+            if (err) {
+                console.error(err);
+            }
+            console.log(response.access_token);
+        }
+    );
+
+    return new ManagementClient({
+        domain: process.env.AUTH0_MGT_DOMAIN,
+        clientId: process.env.AUTH0_MGT_CLIENT_ID,
+        clientSecret: process.env.AUTH0_MGT_CLIENT_SECRET,
+        scope: 'read:users update:users'
+    });
+}
 
 // Authorization middleware. When used, the
 // Access Token must exist and be verified against
@@ -54,30 +84,19 @@ router.get('/private', checkJwt, async function (req, res) {
 // Update a user
 router.patch('/updateUser/:userId', checkJwt, async function (req, res) {
 
-    const userId = req.params.userId;
-
     userArgument = req.body;
 
-    const url = `https://login.eldsal.se/api/v2/users/${userId}`;
+    var params = { id: req.params.userId };
 
-    var y = await axios.patch(url, {
-        ...userArgument
-    },
-        {
-
-            headers: {
-                Authorization: req.headers.authorization,
-                'Content-Type': 'application/json',
-            },
-        }
-    )
-        .then(
-            success => {
-                console.log('changed successfully');
-            },
-            fail => {
-                console.log('failed', fail);
-            });
+    getManagementClient()
+        .updateUser(params, userArgument )
+        .then(function (user) {
+            console.log("SUCCESS: " + JSON.stringify(user));
+        })
+        .catch(function (err) {
+            // Handle error.
+            console.error(err);
+        });
 
     res.json();
 });
