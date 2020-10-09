@@ -2,7 +2,6 @@ import React from "react";
 import { Redirect } from 'react-router-dom'
 import { useAuth0 } from "@auth0/auth0-react";
 import Button from "reactstrap/lib/Button";
-import logo from "../../images/eldsal-logo.svg";
 
 const LoginButton = () => {
     const { loginWithRedirect } = useAuth0();
@@ -24,7 +23,7 @@ const LoginPage = () => {
     return (
         <div className="App">
             <div className="mt-4">
-                <img className="mb-4" src={logo} alt="logo" height="200" />
+                <img className="mb-4" src="/eldsal.png" alt="Eldsäl" />
                 <h1>
                     Welcome to Eldsäl
                 </h1>

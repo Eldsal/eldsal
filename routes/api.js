@@ -22,16 +22,31 @@ function getManagementClient() {
         clientSecret: 'st6hdmebqw0qYQshC5eaOrHOO4ufQQoP0nWlWSaq07jOQfD4FEa8GrBi9fotrfY1'
     });
 
+    auth0 = new AuthenticationClient({
+        domain: process.env.AUTH0_MGT_DOMAIN,
+        clientId: process.env.AUTH0_MGT_CLIENT_ID,
+        clientSecret: process.env.AUTH0_MGT_CLIENT_SECRET
+    });
+
+    auth0 = new AuthenticationClient({
+        domain: 'eldsal.eu.auth0.com',
+        clientId: process.env.AUTH0_MGT_CLIENT_ID,
+        clientSecret: process.env.AUTH0_MGT_CLIENT_SECRET
+    });
+
     auth0.clientCredentialsGrant(
         {
-            audience: 'https://login.eldsal.se/api/v2/',
+            audience: 'https://eldsal.eu.auth0.com/api/v2/',
+            xaudience: 'https://login.eldsal.se/api/v2/',
             scope: 'read:users update:users'
         },
         function (err, response) {
             if (err) {
                 console.error(err);
             }
-            console.log(response.access_token);
+            else {
+                console.log('TOKEN: ' + response.access_token);
+            }
         }
     );
 
@@ -59,12 +74,13 @@ const checkJwt = jwt({
 
     // Validate the audience and the issuer.
     // !!! "audience" should be "https://app.eldsal.se/api/v1" to access our custom API, but that doesn't work right now
-    'xxx-audience': 'https://app.eldsal.se/api/v1',
+    xaudience: 'https://app.eldsal.se/api/v1',
     audience: 'https://eldsal.eu.auth0.com/api/v2/',
     issuer: `https://login.eldsal.se/`,
     algorithms: ['RS256']
 });
 
+const checkScopes = jwtAuthz(['read:current_user']);
 
 // TEST: This route doesn't need authentication
 router.get('/public', function (req, res) {
@@ -82,14 +98,14 @@ router.get('/private', checkJwt, async function (req, res) {
 });
 
 // Update a user
-router.patch('/updateUser/:userId', checkJwt, async function (req, res) {
+router.patch('/updateUser/:userId', checkJwt, checkScopes, async function (req, res) {
 
     userArgument = req.body;
 
     var params = { id: req.params.userId };
 
     getManagementClient()
-        .updateUser(params, userArgument )
+        .updateUser(params, userArgument)
         .then(function (user) {
             console.log("SUCCESS: " + JSON.stringify(user));
         })

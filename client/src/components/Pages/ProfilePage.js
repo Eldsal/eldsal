@@ -1,11 +1,9 @@
 import React, { useState, useEffect } from "react";
-import Async from "react-async";
 import { useAuth0 } from "@auth0/auth0-react";
 import Button from "reactstrap/lib/Button";
-import SiteHeader from "../Common/SiteHeader";
+import AppContent from "../Common/AppContent";
 import axios from "axios";
-import Axios from "axios";
-import { Redirect } from 'react-router-dom'
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 
 const ProfilePage = () => {
 
@@ -14,14 +12,14 @@ const ProfilePage = () => {
     console.log("user: " + JSON.stringify(user));
     console.log("isAuthenticated: " + JSON.stringify(isAuthenticated));
 
-    //const [valueA, errorA, loadingA] = FetchOneResource(user ? user.sub : null);
-    //const resourceA = useAsync(loadUser2, [);
-
     const [userLoading, setUserLoading] = useState(true);
     const [error, setError] = useState(false);
 
+    var saveStates = { "none": 0, "saving": 1, "saved": 2, "error": 3 };
+
     const [givenName, setGivenName] = useState("");
     const [familyName, setFamilyName] = useState("");
+    const [saveState, setSaveState] = useState(saveStates.none);
 
     const loadUser = () => {
 
@@ -47,8 +45,8 @@ const ProfilePage = () => {
             })
             .then(res => res.json())
             .then(json => {
-                setGivenName(json.user_metadata.given_name)
-                setFamilyName(json.user_metadata.family_name)
+                setGivenName(json.user_metadata ? json.user_metadata.given_name : "")
+                setFamilyName(json.user_metadata ? json.user_metadata.family_name : "")
                 return json;
             });
     }
@@ -69,8 +67,7 @@ const ProfilePage = () => {
 
     const updateProfile = async () => {
 
-        setUserLoading(true);
-        setError(false);
+        setSaveState(saveStates.saving);
 
         console.log("updateProfile");
 
@@ -84,18 +81,6 @@ const ProfilePage = () => {
             }
         }
 
-        // !!! Name can't be updated using SSP access token (must be fixed in backend)
-        /*
-        userArgument = {
-            user_metadata: {
-                given_name: givenName,
-                family_name: familyName,
-            }
-        }
-        */
-
-        //const url = `${process.env.REACT_APP_API}users/${user.sub}`;
-        // Using our own API
         const url = `/api/updateUser/${user.sub}`;
 
         return getAccessTokenSilently()
@@ -110,15 +95,23 @@ const ProfilePage = () => {
                         },
                     }
                 )
-            }).then(
-                success => {
-                    setUserLoading(false);
-                    console.log('changed successfully');
-                },
+                    .then(
+                        success => {
+                            setSaveState(saveStates.saved);
+                        },
+                        fail => {
+                            setSaveState(saveStates.error);
+                        })
+                    .catch(reason => {
+                        setSaveState(saveStates.error);
+                    })
+            })
+            .then(
+                success => { },
                 fail => {
                     setUserLoading(false);
                     setError(true);
-                    console.log('failed', fail);
+                    setSaveState(saveStates.error);
                 });
     }
 
@@ -126,13 +119,28 @@ const ProfilePage = () => {
         return <div />
     }
 
+    function renderSaveState() {
+        switch (saveState) {
+            case saveStates.none:
+                return "";
+            case saveStates.saving:
+                return <span><FontAwesomeIcon icon="spinner" spin/> Saving...</span>;
+            case saveStates.saved:
+                return <div className="alert alert-success"><FontAwesomeIcon icon="check"/> Your profile is updated</div>;
+            case saveStates.error:
+                return <div className="alert alert-danger"><FontAwesomeIcon icon="exclamation-circle"/> An error occurred updating your profile</div>;
+            default:
+                return "";
+        }
+    }
+
+
     return (
-        <div className="App">
-            <SiteHeader />
+        <AppContent>
             <h1>Profile</h1>
             <p>Here the user can view and edit profile information</p>
             {error && (<span>Error</span>)}
-            {!error && userLoading && (<span>Loading...</span>)}
+            {!error && userLoading && (<span><FontAwesomeIcon icon="spinner" spin /> Loading...</span>)}
             {!error && !userLoading && (
                 <div>
                     <div className="form-group">
@@ -144,9 +152,10 @@ const ProfilePage = () => {
                         <input id="inp_family_name" value={familyName} onChange={(evt) => setFamilyName(evt.target.value)} type="text" className="form-control" placeholder="Surname" required />
                     </div>
                     <button type="button" onClick={updateProfile} id="submit" name="submit" className="btn btn-primary pull-right">Update</button>
+                    <div className="mt-4">{renderSaveState()}</div>
                 </div>
             )}
-        </div>);
+        </AppContent>);
 };
 
 export default ProfilePage;

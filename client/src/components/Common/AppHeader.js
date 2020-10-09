@@ -13,9 +13,8 @@ import {
     DropdownItem
 } from 'reactstrap';
 import { useAuth0 } from "@auth0/auth0-react";
-import logo from "../../images/eldsal-logo.svg";
 
-const SiteHeader = (props) => {
+const AppHeader = (props) => {
     const [isOpen, setIsOpen] = useState(false);
 
     const toggle = () => setIsOpen(!isOpen);
@@ -27,7 +26,7 @@ const SiteHeader = (props) => {
             <header class="App-header">
                 <Navbar color="light" light expand="md">
                     <NavbarBrand href="/">
-                        <img src={logo} className="App-logo" alt="Eldsäl" />
+                        <img src="/eldsal.png" className="App-logo" alt="Eldsäl" />
                         <span class="pl-2">Eldsäl</span>
                     </NavbarBrand>
                 </Navbar>
@@ -38,8 +37,8 @@ const SiteHeader = (props) => {
     return (
         <header className="App-header">
             <Navbar color="light" light expand="md">
-                <NavbarBrand href="/">
-                    <img src={logo} className="App-logo" alt="Eldsäl" />
+                <NavbarBrand href="/start">
+                    <img src="/eldsal.png" className="App-logo" alt="Eldsäl" />
                     <span className="pl-2">Eldsäl</span>
                 </NavbarBrand>
                 <NavbarToggler onClick={toggle} />
@@ -83,4 +82,4 @@ const SiteHeader = (props) => {
     );
 };
 
-export default SiteHeader;
+export default AppHeader;
