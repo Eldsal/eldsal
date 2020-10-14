@@ -14,6 +14,11 @@ router.get("/test", (req, res) => {
 
 module.exports = router;
 
+function returnError(res, statusMessage) {
+    console.error("ERROR: " + statusMessage);
+    res.status(500).json(statusMessage);
+}
+
 function getManagementClient() {
 
     var auth0 = new AuthenticationClient({
@@ -42,10 +47,8 @@ function getManagementClient() {
         },
         function (err, response) {
             if (err) {
+                console.log("Error fetching management client")
                 console.error(err);
-            }
-            else {
-                console.log('TOKEN: ' + response.access_token);
             }
         }
     );
@@ -84,7 +87,6 @@ const checkScopes = jwtAuthz(['read:current_user']);
 
 // TEST: This route doesn't need authentication
 router.get('/public', function (req, res) {
-    console.log("hej");
     res.json({
         message: 'Hello from a public endpoint! You don\'t need to be authenticated to see this.'
     });
@@ -97,22 +99,106 @@ router.get('/private', checkJwt, async function (req, res) {
     });
 });
 
-// Update a user
-router.patch('/updateUser/:userId', checkJwt, checkScopes, async function (req, res) {
+/* Update a user
+ * Argument object:
+ *  given_name
+ *  family_name
+ *  birth_date
+ *  phone_number
+ *  address_line_1
+ *  address_line_2
+ *  postal_code
+ *  city
+ *  country
+ **/
+router.patch('/updateUserProfile/:userId', checkJwt, checkScopes, async function (req, res) {
 
-    userArgument = req.body;
+    console.log('updateUserProfile');
+    console.log(req.body);
 
-    var params = { id: req.params.userId };
+    const { given_name, family_name, birth_date, phone_number, address_line_1, address_line_2, postal_code, city, country} = req.body;
+
+    if (!given_name)
+        return returnError(res, "First name is required");
+
+    if (!family_name)
+        return returnError(res, "Surname is required");
+
+    if (!birth_date)
+        return returnError(res, "Birth date is required");
+
+    if (!phone_number)
+        return returnError(res, "Phone number is required");
+
+    if (!address_line_1)
+        return returnError(res, "Address is required");
+
+    if (!postal_code)
+        return returnError(res, "Postal code is required");
+
+    if (!city)
+        return returnError(res, "City is required");
+
+    if (!country)
+        return returnError(res, "Country is required");
+
+    const params = { id: req.params.userId };
+
+    const userArgument = {
+        name: given_name + " " + family_name,
+        given_name: given_name,
+        family_name: family_name,
+        user_metadata: {
+            birth_date: birth_date,
+            phone_number: phone_number,
+            address_line_1: address_line_1,
+            address_line_2: address_line_2,
+            postal_code: postal_code,
+            city: city,
+            country: country
+        }
+    }
 
     getManagementClient()
         .updateUser(params, userArgument)
         .then(function (user) {
-            console.log("SUCCESS: " + JSON.stringify(user));
+            res.json();
+            res.json(statusMessage);
         })
         .catch(function (err) {
             // Handle error.
             console.error(err);
+            returnError(res, err);
         });
 
-    res.json();
+});
+
+/* Update a user
+ * Argument object:
+ *  current_password
+ *  new_password
+ *  verify_password
+ **/
+router.patch('/changeUserPassword/:userId', checkJwt, checkScopes, async function (req, res) {
+
+    console.log('changeUserPassword');
+
+    const params = {
+        result_url: `https://${process.env.WEB_HOST}/login`,
+        user_id: req.params.userId
+    }
+
+    console.log(params);
+
+    getManagementClient()
+        .createPasswordChangeTicket(params)
+        .then(function (ticketResponse) {
+            res.json({ url: ticketResponse.ticket });
+        })
+        .catch(function (err) {
+            // Handle error.
+            console.error(err);
+            returnError(res, err);
+        });
+
 });
