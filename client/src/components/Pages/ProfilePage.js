@@ -1,16 +1,15 @@
-import React, { useState, useEffect, useRef } from "react";
-import { useAuth0 } from "@auth0/auth0-react";
-import Button from "reactstrap/lib/Button";
+import React, { useState, useEffect } from "react";
+import { useAuth0, withAuthenticationRequired } from "@auth0/auth0-react";
 import AppContent from "../Common/AppContent";
 import axios from "axios";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { post } from "../../api";
+import { useUser } from '../../hooks/user';
 
 const ProfilePage = () => {
 
-    const { user, isAuthenticated, getAccessTokenSilently } = useAuth0();
+    const { user, getAccessTokenSilently } = useAuth0();
+    const { userInfo, isAuthenticated, isUserLoading } = useUser();
 
-    const [userLoading, setUserLoading] = useState(true);
     const [error, setError] = useState(false);
 
     var pageStates = { "view": 0, "updateProfile": 1, "changePassword": 2 };
@@ -37,7 +36,6 @@ const ProfilePage = () => {
     const [birthDate, setBirthDate] = useState(null);
     const [birthDateError, setBirthDateError] = useState(null);
 
-    // we use the help of useRef to test if it's the first render
     const [showValidationForUnmodifiedFields, setShowValidationForUnmodifiedFields] = useState(false);
 
     const [isUpdateProfileFormValid, setIsUpdateProfileFormValid] = useState(false)
@@ -115,43 +113,6 @@ const ProfilePage = () => {
         return errors === 0;
     }
 
-    const loadUser = () => {
-
-        const url = `${process.env.REACT_APP_API}users/${user.sub}`;
-
-        return getAccessTokenSilently()
-            .then(accessToken => fetch(url, {
-                headers: {
-                    Authorization: `Bearer ${accessToken}`,
-                    'Content-Type': 'application/json',
-                }
-            }))
-            .then(res => { setUserLoading(false); return res; })
-            .then(res => {
-                if (res.ok)
-                    return res;
-                else {
-                    setError(true);
-                    return Promise.reject(res);
-                }
-            })
-            .then(res => res.json())
-            .then(json => {
-                setGivenName(nullIfEmpty(json.given_name))
-                setFamilyName(nullIfEmpty(json.family_name))
-                if (json.user_metadata) {
-                    setPhoneNumber(nullIfEmpty(json.user_metadata.phone_number))
-                    setAddressLine1(nullIfEmpty(json.user_metadata.address_line_1))
-                    setAddressLine2(nullIfEmpty(json.user_metadata.address_line_2))
-                    setPostalCode(nullIfEmpty(json.user_metadata.postal_code))
-                    setCity(nullIfEmpty(json.user_metadata.city))
-                    setCountry(nullIfEmpty(json.user_metadata.country))
-                    setBirthDate(nullIfEmpty(json.user_metadata.birth_date))
-                }
-                return json;
-            });
-    }
-
     function isEmpty(value) {
         return value === null || value === "" || typeof (value) == "undefined";
     }
@@ -171,11 +132,21 @@ const ProfilePage = () => {
     }
 
     useEffect(() => {
-        if (!isAuthenticated)
+        if (userInfo == null)
             return;
 
-        loadUser();
-    }, [user]);
+        setGivenName(nullIfEmpty(userInfo.given_name))
+        setFamilyName(nullIfEmpty(userInfo.family_name))
+        if (userInfo.user_metadata) {
+            setPhoneNumber(nullIfEmpty(userInfo.user_metadata.phone_number))
+            setAddressLine1(nullIfEmpty(userInfo.user_metadata.address_line_1))
+            setAddressLine2(nullIfEmpty(userInfo.user_metadata.address_line_2))
+            setPostalCode(nullIfEmpty(userInfo.user_metadata.postal_code))
+            setCity(nullIfEmpty(userInfo.user_metadata.city))
+            setCountry(nullIfEmpty(userInfo.user_metadata.country))
+            setBirthDate(nullIfEmpty(userInfo.user_metadata.birth_date))
+        }
+    }, [userInfo]);
 
     const updateProfile = async () => {
 
@@ -233,7 +204,6 @@ const ProfilePage = () => {
             .then(
                 success => { },
                 fail => {
-                    setUserLoading(false);
                     setError(true);
                     setSaveState(saveStates.errorProfile);
                 });
@@ -271,13 +241,12 @@ const ProfilePage = () => {
             .then(
                 success => { },
                 fail => {
-                    setUserLoading(false);
                     setError(true);
                     setSaveState(saveStates.errorPassword);
                 });
     }
 
-    if (!isAuthenticated) {
+    if (isUserLoading) {
         return <div />
     }
 
@@ -330,37 +299,37 @@ const ProfilePage = () => {
         switch (pageState) {
             case pageStates.view:
                 return (<div className="mx-auto" style={{ maxWidth: "400px" }}>
-                    <div class="row text-left">
+                    <div className="row text-left">
                         <div className="col-4">First name</div>
                         <div className="col-8">{emptyStringIfNull(givenName)}</div>
                     </div>
-                    <div class="row text-left">
+                    <div className="row text-left">
                         <div className="col-4">Surname</div>
                         <div className="col-8">{emptyStringIfNull(familyName)}</div>
                     </div>
-                    <div class="row text-left">
+                    <div className="row text-left">
                         <div className="col-4">Phone number</div>
                         <div className="col-8">{emptyStringIfNull(phoneNumber)}</div>
                     </div>
-                    <div class="row text-left">
+                    <div className="row text-left">
                         <div className="col-4">Birth date</div>
                         <div className="col-8">{emptyStringIfNull(birthDate)}</div>
                     </div>
-                    <div class="row text-left">
+                    <div className="row text-left">
                         <div className="col-4">Address</div>
                         <div className="col-8">
                             {emptyStringIfNull(addressLine1)}<br />
                             {emptyStringIfNull(addressLine2)}</div>
                     </div>
-                    <div class="row text-left">
+                    <div className="row text-left">
                         <div className="col-4">Postal code</div>
                         <div className="col-8">{emptyStringIfNull(postalCode)}</div>
                     </div>
-                    <div class="row text-left">
+                    <div className="row text-left">
                         <div className="col-4">City</div>
                         <div className="col-8">{emptyStringIfNull(city)}</div>
                     </div>
-                    <div class="row text-left">
+                    <div className="row text-left">
                         <div className="col-4">Country</div>
                         <div className="col-8">{emptyStringIfNull(country)}</div>
                     </div>
@@ -431,11 +400,11 @@ const ProfilePage = () => {
         <AppContent>
             {renderPageHeader()}
             {error && (<span>Error</span>)}
-            {!error && userLoading && (<span><FontAwesomeIcon icon="spinner" spin /> Loading...</span>)}
-            {!error && !userLoading && renderPageContent()}
+            {!error && isUserLoading && (<span><FontAwesomeIcon icon="spinner" spin /> Loading...</span>)}
+            {!error && !isUserLoading && renderPageContent()}
             <div className="mt-4">{renderSaveState()}</div>
         </AppContent>
     );
 };
 
-export default ProfilePage;
+export default withAuthenticationRequired(ProfilePage);

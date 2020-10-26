@@ -1,11 +1,11 @@
 import React from "react";
-import { useAuth0 } from "@auth0/auth0-react";
+import { useAuth0, withAuthenticationRequired } from "@auth0/auth0-react";
 import Button from "reactstrap/lib/Button";
 import AppContent from "../Common/AppContent";
 
 const StartPage = () => {
 
-    const { user, isAuthenticated, getAccessTokenSilently } = useAuth0();
+    const { isAuthenticated } = useAuth0();
 
     if (!isAuthenticated) {
         return <div />
@@ -19,4 +19,4 @@ const StartPage = () => {
     );
 };
 
-export default StartPage;
+export default withAuthenticationRequired(StartPage);

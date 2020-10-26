@@ -3,10 +3,7 @@ const router = express.Router();
 const jwt = require('express-jwt');
 const jwtAuthz = require('express-jwt-authz');
 const jwksRsa = require('jwks-rsa');
-const fetch = require('node-fetch');
-const axios = require('axios');
-var AuthenticationClient = require('auth0').AuthenticationClient;
-var ManagementClient = require('auth0').ManagementClient;
+const { AuthenticationClient, ManagementClient } = require('auth0');
 
 router.get("/test", (req, res) => {
     return res.status(200).json({ success: true })
@@ -19,40 +16,7 @@ function returnError(res, statusMessage) {
     res.status(500).json(statusMessage);
 }
 
-function getManagementClient() {
-
-    var auth0 = new AuthenticationClient({
-        domain: 'eldsal.eu.auth0.com',
-        clientId: 'p4PqUsM5H7QS81byl44b4rfOXAciYLHN',
-        clientSecret: 'st6hdmebqw0qYQshC5eaOrHOO4ufQQoP0nWlWSaq07jOQfD4FEa8GrBi9fotrfY1'
-    });
-
-    auth0 = new AuthenticationClient({
-        domain: process.env.AUTH0_MGT_DOMAIN,
-        clientId: process.env.AUTH0_MGT_CLIENT_ID,
-        clientSecret: process.env.AUTH0_MGT_CLIENT_SECRET
-    });
-
-    auth0 = new AuthenticationClient({
-        domain: 'eldsal.eu.auth0.com',
-        clientId: process.env.AUTH0_MGT_CLIENT_ID,
-        clientSecret: process.env.AUTH0_MGT_CLIENT_SECRET
-    });
-
-    auth0.clientCredentialsGrant(
-        {
-            audience: 'https://eldsal.eu.auth0.com/api/v2/',
-            xaudience: 'https://login.eldsal.se/api/v2/',
-            scope: 'read:users update:users'
-        },
-        function (err, response) {
-            if (err) {
-                console.log("Error fetching management client")
-                console.error(err);
-            }
-        }
-    );
-
+const getManagementClient = () => {
     return new ManagementClient({
         domain: process.env.AUTH0_MGT_DOMAIN,
         clientId: process.env.AUTH0_MGT_CLIENT_ID,
@@ -114,9 +78,9 @@ router.get('/private', checkJwt, async function (req, res) {
 router.patch('/updateUserProfile/:userId', checkJwt, checkScopes, async function (req, res) {
 
     console.log('updateUserProfile');
-    console.log(req.body);
+    //console.log(req.body);
 
-    const { given_name, family_name, birth_date, phone_number, address_line_1, address_line_2, postal_code, city, country} = req.body;
+    const { given_name, family_name, birth_date, phone_number, address_line_1, address_line_2, postal_code, city, country } = req.body;
 
     if (!given_name)
         return returnError(res, "First name is required");
@@ -163,7 +127,6 @@ router.patch('/updateUserProfile/:userId', checkJwt, checkScopes, async function
         .updateUser(params, userArgument)
         .then(function (user) {
             res.json();
-            res.json(statusMessage);
         })
         .catch(function (err) {
             // Handle error.

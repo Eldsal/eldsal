@@ -7,6 +7,7 @@ const LoginPage = lazy(() => import("./components/Pages/LoginPage"));
 const StartPage = lazy(() => import("./components/Pages/StartPage"));
 const SubscriptionPage = lazy(() => import("./components/Pages/SubscriptionPage"));
 const ProfilePage = lazy(() => import("./components/Pages/ProfilePage"));
+const AdminPage = lazy(() => import("./components/Pages/AdminPage"));
 
 const Routes = ({ location }) => (
     <Suspense fallback={<PageLoader />}>
@@ -15,6 +16,7 @@ const Routes = ({ location }) => (
             <Route path="/start" component={waitFor(StartPage)} />
             <Route path="/subscription" component={waitFor(SubscriptionPage)} />
             <Route path="/profile" component={waitFor(ProfilePage)} />
+            <Route path="/admin" component={waitFor(AdminPage)} />
             <Route path="/" component={waitFor(LoginPage)} />
         </Switch>
     </Suspense>
