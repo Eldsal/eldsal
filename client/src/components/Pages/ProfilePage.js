@@ -1,99 +1,178 @@
 import React, { useState, useEffect } from "react";
-import Async from "react-async";
-import { useAuth0 } from "@auth0/auth0-react";
-import Button from "reactstrap/lib/Button";
-import SiteHeader from "../Common/SiteHeader";
+import { useAuth0, withAuthenticationRequired } from "@auth0/auth0-react";
+import AppContent from "../Common/AppContent";
 import axios from "axios";
-import Axios from "axios";
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { useUser } from '../../hooks/user';
 
 const ProfilePage = () => {
 
-    const { user, isAuthenticated, getAccessTokenSilently } = useAuth0();
+    const { user, getAccessTokenSilently } = useAuth0();
+    const { userInfo, isAuthenticated, isUserLoading } = useUser();
 
-    console.log("user: " + JSON.stringify(user));
-    console.log("isAuthenticated: " + JSON.stringify(isAuthenticated));
-
-    //const [valueA, errorA, loadingA] = FetchOneResource(user ? user.sub : null);
-    //const resourceA = useAsync(loadUser2, [);
-
-    const [userLoading, setUserLoading] = useState(true);
     const [error, setError] = useState(false);
 
-    const [givenName, setGivenName] = useState("");
-    const [familyName, setFamilyName] = useState("");
+    var pageStates = { "view": 0, "updateProfile": 1, "changePassword": 2 };
+    const [pageState, setPageState] = useState(pageStates.view);
 
-    const loadUser = () => {
+    var saveStates = { "none": 0, "saving": 1, "savedProfile": 2, "errorProfile": 3, "savedPassword": 4, "errorPassword": 5 };
+    const [saveState, setSaveState] = useState(saveStates.none);
 
-        console.log("Load user: " + user.sub.toString());
+    const [givenName, setGivenName] = useState(null);
+    const [givenNameError, setGivenNameError] = useState(null);
+    const [familyName, setFamilyName] = useState(null);
+    const [familyNameError, setFamilyNameError] = useState(null);
+    const [phoneNumber, setPhoneNumber] = useState(null);
+    const [phoneNumberError, setPhoneNumberError] = useState(null);
+    const [addressLine1, setAddressLine1] = useState(null);
+    const [addressLine1Error, setAddressLine1Error] = useState(null);
+    const [addressLine2, setAddressLine2] = useState(null);
+    const [postalCode, setPostalCode] = useState(null);
+    const [postalCodeError, setPostalCodeError] = useState(null);
+    const [city, setCity] = useState(null);
+    const [cityError, setCityError] = useState(null);
+    const [country, setCountry] = useState(null);
+    const [countryError, setCountryError] = useState(null);
+    const [birthDate, setBirthDate] = useState(null);
+    const [birthDateError, setBirthDateError] = useState(null);
 
-        const url = `${process.env.REACT_APP_API}users/${user.sub}`;
+    const [showValidationForUnmodifiedFields, setShowValidationForUnmodifiedFields] = useState(false);
 
-        return getAccessTokenSilently()
-            .then(accessToken => fetch(url, {
-                headers: {
-                    Authorization: `Bearer ${accessToken}`,
-                    'Content-Type': 'application/json',
-                }
-            }))
-            .then(res => { setUserLoading(false); return res; })
-            .then(res => {
-                if (res.ok)
-                    return res;
-                else {
-                    setError(true);
-                    return Promise.reject(res);
-                }
-            })
-            .then(res => res.json())
-            .then(json => {
-                setGivenName(json.user_metadata.given_name)
-                setFamilyName(json.user_metadata.family_name)
-                return json;
-            });
+    const [isUpdateProfileFormValid, setIsUpdateProfileFormValid] = useState(false)
+
+    const showPage = (pageState) => {
+        setSaveState(saveStates.none);
+        setShowValidationForUnmodifiedFields(false);
+        setPageState(pageState);
     }
 
     useEffect(() => {
-        if (!isAuthenticated)
+        setIsUpdateProfileFormValid(validateUpdateProfileForm())
+    }, [givenName, familyName, phoneNumber, birthDate, addressLine1, postalCode, city, country]) // any state variable(s) included in here will trigger the effect to run
+
+    const validateUpdateProfileForm = () => {
+
+        let errors = 0;
+
+        if (isEmpty(givenName)) {
+            setGivenNameError('First name is required')
+            errors++;
+        } else {
+            setGivenNameError(null)
+        }
+        if (isEmpty(familyName)) {
+            setFamilyNameError('Surname is required')
+            errors++;
+        } else {
+            setFamilyNameError(null)
+        }
+        if (isEmpty(phoneNumber)) {
+            setPhoneNumberError('Phone number is required')
+            errors++;
+        } else if (!/^\+[0-9 -]{10,30}$/.test(phoneNumber)) {
+            setPhoneNumberError("Enter a phone number with country prefix (e.g. +NN NNN NN NN)")
+            errors++;
+        }
+        else {
+            setPhoneNumberError(null)
+        }
+        if (isEmpty(birthDate)) {
+            setBirthDateError('Birth date is required')
+            errors++;
+        } else if (!/^\d{4}-\d{2}-\d{2}$/.test(birthDate)) {
+            setBirthDateError("Enter a birth date as YYYY-MM-DD")
+            errors++;
+        } else {
+            setBirthDateError(null)
+        }
+        if (isEmpty(addressLine1)) {
+            setAddressLine1Error('Address is required')
+            errors++;
+        } else {
+            setAddressLine1Error(null)
+        }
+        if (isEmpty(postalCode)) {
+            setPostalCodeError('Postal code is required')
+            errors++;
+        } else {
+            setPostalCodeError(null)
+        }
+        if (isEmpty(city)) {
+            setCityError('City is required')
+            errors++;
+        } else {
+            setCityError(null)
+        }
+        if (isEmpty(country)) {
+            setCountryError('Country is required')
+            errors++;
+        } else {
+            setCountryError(null)
+        }
+
+        return errors === 0;
+    }
+
+    function isEmpty(value) {
+        return value === null || value === "" || typeof (value) == "undefined";
+    }
+
+    function nullIfEmpty(value) {
+        if (isEmpty(value))
+            return null;
+        else
+            return value;
+    }
+
+    function emptyStringIfNull(value) {
+        if (isEmpty(value))
+            return "";
+        else
+            return value;
+    }
+
+    useEffect(() => {
+        if (userInfo == null)
             return;
 
-        console.log("useEffect");
-
-        loadUser();
-    }, [user]);
-
-    var userProfile = {
-        given_name: "",
-        family_name: ""
-    }
+        setGivenName(nullIfEmpty(userInfo.given_name))
+        setFamilyName(nullIfEmpty(userInfo.family_name))
+        if (userInfo.user_metadata) {
+            setPhoneNumber(nullIfEmpty(userInfo.user_metadata.phone_number))
+            setAddressLine1(nullIfEmpty(userInfo.user_metadata.address_line_1))
+            setAddressLine2(nullIfEmpty(userInfo.user_metadata.address_line_2))
+            setPostalCode(nullIfEmpty(userInfo.user_metadata.postal_code))
+            setCity(nullIfEmpty(userInfo.user_metadata.city))
+            setCountry(nullIfEmpty(userInfo.user_metadata.country))
+            setBirthDate(nullIfEmpty(userInfo.user_metadata.birth_date))
+        }
+    }, [userInfo]);
 
     const updateProfile = async () => {
 
-        setUserLoading(true);
-        setError(false);
+        setShowValidationForUnmodifiedFields(true);
+
+        if (!isUpdateProfileFormValid) {
+            return;
+        }
+
+        setSaveState(saveStates.saving);
 
         console.log("updateProfile");
 
-        var name = givenName + " " + familyName;
-
         var userArgument = {
-            name: name,
-            user_metadata: {
-                given_name: givenName,
-                family_name: familyName,
-            }
+            given_name: givenName,
+            family_name: familyName,
+            birth_date: birthDate,
+            phone_number: phoneNumber,
+            address_line_1: addressLine1,
+            address_line_2: addressLine2,
+            postal_code: postalCode,
+            city: city,
+            country: country
         }
 
-        // !!! Name can't be updated using SSP access token (must be fixed in backend)
-        userArgument = {
-            user_metadata: {
-                given_name: givenName,
-                family_name: familyName,
-            }
-        }
-
-        //const url = `${process.env.REACT_APP_API}users/${user.sub}`;
-        // Using our own API
-        const url = `/api/updateUser/${user.sub}`;
+        const url = `/api/updateUserProfile/${user.sub}`;
 
         return getAccessTokenSilently()
             .then(accessToken => {
@@ -107,42 +186,225 @@ const ProfilePage = () => {
                         },
                     }
                 )
-            }).then(
-                success => {
-                    setUserLoading(false);
-                    console.log('changed successfully');
-                },
+                    .then(
+                        success => {
+                            console.log("save success")
+                            showPage(pageStates.view);
+                            setSaveState(saveStates.savedProfile);
+                        },
+                        fail => {
+                            console.log("save fail")
+                            console.log(fail);
+                            setSaveState(saveStates.errorProfile);
+                        })
+                    .catch(reason => {
+                        setSaveState(saveStates.errorProfile);
+                    })
+            })
+            .then(
+                success => { },
                 fail => {
-                    setUserLoading(false);
                     setError(true);
-                    console.log('failed', fail);
+                    setSaveState(saveStates.errorProfile);
                 });
     }
 
-    if (!isAuthenticated)
-        return (<div />);
+    const changePassword = async () => {
 
-    return (
-        <div className="App">
-            <SiteHeader />
-            <h1>Profile</h1>
-            <p>Here the user can view and edit profile information</p>
-            {error && (<span>Error</span>)}
-            {!error && userLoading && (<span>Loading...</span>)}
-            {!error && !userLoading && (
-                <div>
+        console.log("changePassword");
+
+        const url = `/api/changeUserPassword/${user.sub}`;
+
+        return getAccessTokenSilently()
+            .then(accessToken => {
+                axios.patch(url, null,
+                    {
+                        headers: {
+                            Authorization: `Bearer ${accessToken}`,
+                            'Content-Type': 'application/json',
+                        },
+                    }
+                )
+                    .then(
+                        success => {
+                            console.log("save success")
+                            window.location.assign(success.data.url);
+                        },
+                        fail => {
+                            console.log("save fail")
+                            console.log(fail);
+                        })
+                    .catch(reason => {
+                        setSaveState(saveStates.errorPassword);
+                    })
+            })
+            .then(
+                success => { },
+                fail => {
+                    setError(true);
+                    setSaveState(saveStates.errorPassword);
+                });
+    }
+
+    if (isUserLoading) {
+        return <div />
+    }
+
+    function renderSaveState() {
+        switch (saveState) {
+            case saveStates.none:
+                return "";
+            case saveStates.saving:
+                return <span><FontAwesomeIcon icon="spinner" spin /> Saving...</span>;
+            case saveStates.savedProfile:
+                return <div className="alert alert-success"><FontAwesomeIcon icon="check" /> Your profile is updated</div>;
+            case saveStates.errorProfile:
+                return <div className="alert alert-danger"><FontAwesomeIcon icon="exclamation-circle" /> An error occurred updating your profile</div>;
+            case saveStates.savedPassword:
+                return <div className="alert alert-success"><FontAwesomeIcon icon="check" /> Your password is changed</div>;
+            case saveStates.errorPassword:
+                return <div className="alert alert-danger"><FontAwesomeIcon icon="exclamation-circle" /> An error occurred changing your password</div>;
+            default:
+                return "";
+        }
+    }
+
+    function showValidationError(property, errProperty) {
+        if (property === null && !showValidationForUnmodifiedFields)
+            return "";
+
+        return errProperty && <div className="mt-1 text-danger">{errProperty}</div>
+    }
+
+    const renderPageHeader = () => {
+        switch (pageState) {
+            case pageStates.view:
+                return (<section>
+                    <h1>Profile</h1>
+                    <p>Here the user can view and edit profile information</p>
+                </section>);
+
+            case pageStates.updateProfile:
+                return (<section>
+                    <h1>Update profile</h1>
+                    <p>Update your profile information</p>
+                </section>);
+
+            default:
+                return <div className="text-danger">(Invalid page state)</div>
+        }
+    }
+
+    const renderPageContent = () => {
+        switch (pageState) {
+            case pageStates.view:
+                return (<div className="mx-auto" style={{ maxWidth: "400px" }}>
+                    <div className="row text-left">
+                        <div className="col-4">First name</div>
+                        <div className="col-8">{emptyStringIfNull(givenName)}</div>
+                    </div>
+                    <div className="row text-left">
+                        <div className="col-4">Surname</div>
+                        <div className="col-8">{emptyStringIfNull(familyName)}</div>
+                    </div>
+                    <div className="row text-left">
+                        <div className="col-4">Phone number</div>
+                        <div className="col-8">{emptyStringIfNull(phoneNumber)}</div>
+                    </div>
+                    <div className="row text-left">
+                        <div className="col-4">Birth date</div>
+                        <div className="col-8">{emptyStringIfNull(birthDate)}</div>
+                    </div>
+                    <div className="row text-left">
+                        <div className="col-4">Address</div>
+                        <div className="col-8">
+                            {emptyStringIfNull(addressLine1)}<br />
+                            {emptyStringIfNull(addressLine2)}</div>
+                    </div>
+                    <div className="row text-left">
+                        <div className="col-4">Postal code</div>
+                        <div className="col-8">{emptyStringIfNull(postalCode)}</div>
+                    </div>
+                    <div className="row text-left">
+                        <div className="col-4">City</div>
+                        <div className="col-8">{emptyStringIfNull(city)}</div>
+                    </div>
+                    <div className="row text-left">
+                        <div className="col-4">Country</div>
+                        <div className="col-8">{emptyStringIfNull(country)}</div>
+                    </div>
+                    <div className="mt-4">
+                        <button type="button" onClick={() => showPage(pageStates.updateProfile)} id="stateUpdateProfile" className="btn btn-primary">Update profile</button>
+                        <button type="button" onClick={() => changePassword()} id="stateUpdateProfile" className="btn btn-primary ml-2">Change password</button>
+                    </div>
+                </div>);
+
+            case pageStates.updateProfile:
+                return (<div className="mx-auto" style={{ maxWidth: "500px" }}>
                     <div className="form-group">
                         <label htmlFor="inp_given_name">First name</label>
-                        <input id="inp_given_name" value={givenName} onChange={(evt) => setGivenName(evt.target.value)} type="text" className="form-control" placeholder="First name" required />
+                        <input id="inp_given_name" value={emptyStringIfNull(givenName)} onChange={(evt) => setGivenName(evt.target.value)} type="text" className="form-control" placeholder="First name" required />
+                        {showValidationError(givenName, givenNameError)}
                     </div>
                     <div className="form-group">
                         <label htmlFor="inp_family_name">Surname</label>
-                        <input id="inp_family_name" value={familyName} onChange={(evt) => setFamilyName(evt.target.value)} type="text" className="form-control" placeholder="Surname" required />
+                        <input id="inp_family_name" value={emptyStringIfNull(familyName)} onChange={(evt) => setFamilyName(evt.target.value)} type="text" className="form-control" placeholder="Surname" required />
+                        {showValidationError(familyName, familyNameError)}
                     </div>
-                    <button type="button" onClick={updateProfile} id="submit" name="submit" className="btn btn-primary pull-right">Update</button>
-                </div>
-            )}
-        </div>);
+                    <div className="form-group">
+                        <label htmlFor="inp_phone_number">Phone number</label>
+                        <input id="inp_phone_number" value={emptyStringIfNull(phoneNumber)} onChange={(evt) => setPhoneNumber(evt.target.value)} type="tel" className="form-control" placeholder="+NN NNN NNN NNN" required />
+                        {showValidationError(phoneNumber, phoneNumberError)}
+                    </div>
+                    <div className="form-group">
+                        <label htmlFor="inp_birth_date">Birth date</label>
+                        <input id="inp_birth_date" value={emptyStringIfNull(birthDate)} onChange={(evt) => setBirthDate(evt.target.value)} type="date" className="form-control" placeholder="YYYY-MM-DD" required />
+                        {showValidationError(birthDate, birthDateError)}
+                    </div>
+                    <div className="form-group">
+                        <label htmlFor="inp_address_line_1">Address line 1</label>
+                        <input id="inp_address_line_1" value={emptyStringIfNull(addressLine1)} onChange={(evt) => setAddressLine1(evt.target.value)} type="text" className="form-control" placeholder="Address" required />
+                        {showValidationError(addressLine1, addressLine1Error)}
+                    </div>
+                    <div className="form-group">
+                        <label htmlFor="inp_address_line_2">Address line 2 (optional)</label>
+                        <input id="inp_address_line_2" value={emptyStringIfNull(addressLine2)} onChange={(evt) => setAddressLine2(evt.target.value)} type="text" className="form-control" placeholder="" required />
+                    </div>
+                    <div className="form-group">
+                        <label htmlFor="inp_postal_code">Postal code</label>
+                        <input id="inp_postal_code" value={emptyStringIfNull(postalCode)} onChange={(evt) => setPostalCode(evt.target.value)} type="text" className="form-control" placeholder="Postal code" required />
+                        {showValidationError(postalCode, postalCodeError)}
+                    </div>
+                    <div className="form-group">
+                        <label htmlFor="inp_city">City</label>
+                        <input id="inp_city" value={emptyStringIfNull(city)} onChange={(evt) => setCity(evt.target.value)} type="text" className="form-control" placeholder="City" required />
+                        {showValidationError(city, cityError)}
+                    </div>
+                    <div className="form-group">
+                        <label htmlFor="inp_country">Country</label>
+                        <input id="inp_country" value={emptyStringIfNull(country)} onChange={(evt) => setCountry(evt.target.value)} type="text" className="form-control" placeholder="Country" required />
+                        {showValidationError(country, countryError)}
+                    </div>
+                    <div className="mt-4">
+                        <button type="button" onClick={() => updateProfile()} id="submitProfile" className="btn btn-primary">Update</button>
+                        <button type="button" onClick={() => showPage(pageStates.view)} className="btn btn-outline-secondary ml-2">Cancel</button>
+                    </div>
+                </div>);
+
+            default:
+                return "";
+        }
+    }
+
+    return (
+        <AppContent>
+            {renderPageHeader()}
+            {error && (<span>Error</span>)}
+            {!error && isUserLoading && (<span><FontAwesomeIcon icon="spinner" spin /> Loading...</span>)}
+            {!error && !isUserLoading && renderPageContent()}
+            <div className="mt-4">{renderSaveState()}</div>
+        </AppContent>
+    );
 };
 
-export default ProfilePage;
+export default withAuthenticationRequired(ProfilePage);

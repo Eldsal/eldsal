@@ -3,15 +3,27 @@ const router = express.Router();
 const jwt = require('express-jwt');
 const jwtAuthz = require('express-jwt-authz');
 const jwksRsa = require('jwks-rsa');
-const fetch = require('node-fetch');
-const axios = require('axios');
-
+const { AuthenticationClient, ManagementClient } = require('auth0');
 
 router.get("/test", (req, res) => {
     return res.status(200).json({ success: true })
 });
 
 module.exports = router;
+
+function returnError(res, statusMessage) {
+    console.error("ERROR: " + statusMessage);
+    res.status(500).json(statusMessage);
+}
+
+const getManagementClient = () => {
+    return new ManagementClient({
+        domain: process.env.AUTH0_MGT_DOMAIN,
+        clientId: process.env.AUTH0_MGT_CLIENT_ID,
+        clientSecret: process.env.AUTH0_MGT_CLIENT_SECRET,
+        scope: 'read:users update:users'
+    });
+}
 
 // Authorization middleware. When used, the
 // Access Token must exist and be verified against
@@ -29,16 +41,16 @@ const checkJwt = jwt({
 
     // Validate the audience and the issuer.
     // !!! "audience" should be "https://app.eldsal.se/api/v1" to access our custom API, but that doesn't work right now
-    'xxx-audience': 'https://app.eldsal.se/api/v1',
+    xaudience: 'https://app.eldsal.se/api/v1',
     audience: 'https://eldsal.eu.auth0.com/api/v2/',
     issuer: `https://login.eldsal.se/`,
     algorithms: ['RS256']
 });
 
+const checkScopes = jwtAuthz(['read:current_user']);
 
 // TEST: This route doesn't need authentication
 router.get('/public', function (req, res) {
-    console.log("hej");
     res.json({
         message: 'Hello from a public endpoint! You don\'t need to be authenticated to see this.'
     });
@@ -51,33 +63,105 @@ router.get('/private', checkJwt, async function (req, res) {
     });
 });
 
-// Update a user
-router.patch('/updateUser/:userId', checkJwt, async function (req, res) {
+/* Update a user
+ * Argument object:
+ *  given_name
+ *  family_name
+ *  birth_date
+ *  phone_number
+ *  address_line_1
+ *  address_line_2
+ *  postal_code
+ *  city
+ *  country
+ **/
+router.patch('/updateUserProfile/:userId', checkJwt, checkScopes, async function (req, res) {
 
-    const userId = req.params.userId;
+    console.log('updateUserProfile');
+    //console.log(req.body);
 
-    userArgument = req.body;
+    const { given_name, family_name, birth_date, phone_number, address_line_1, address_line_2, postal_code, city, country } = req.body;
 
-    const url = `https://login.eldsal.se/api/v2/users/${userId}`;
+    if (!given_name)
+        return returnError(res, "First name is required");
 
-    var y = await axios.patch(url, {
-        ...userArgument
-    },
-        {
+    if (!family_name)
+        return returnError(res, "Surname is required");
 
-            headers: {
-                Authorization: req.headers.authorization,
-                'Content-Type': 'application/json',
-            },
+    if (!birth_date)
+        return returnError(res, "Birth date is required");
+
+    if (!phone_number)
+        return returnError(res, "Phone number is required");
+
+    if (!address_line_1)
+        return returnError(res, "Address is required");
+
+    if (!postal_code)
+        return returnError(res, "Postal code is required");
+
+    if (!city)
+        return returnError(res, "City is required");
+
+    if (!country)
+        return returnError(res, "Country is required");
+
+    const params = { id: req.params.userId };
+
+    const userArgument = {
+        name: given_name + " " + family_name,
+        given_name: given_name,
+        family_name: family_name,
+        user_metadata: {
+            birth_date: birth_date,
+            phone_number: phone_number,
+            address_line_1: address_line_1,
+            address_line_2: address_line_2,
+            postal_code: postal_code,
+            city: city,
+            country: country
         }
-    )
-        .then(
-            success => {
-                console.log('changed successfully');
-            },
-            fail => {
-                console.log('failed', fail);
-            });
+    }
 
-    res.json();
+    getManagementClient()
+        .updateUser(params, userArgument)
+        .then(function (user) {
+            res.json();
+        })
+        .catch(function (err) {
+            // Handle error.
+            console.error(err);
+            returnError(res, err);
+        });
+
+});
+
+/* Update a user
+ * Argument object:
+ *  current_password
+ *  new_password
+ *  verify_password
+ **/
+router.patch('/changeUserPassword/:userId', checkJwt, checkScopes, async function (req, res) {
+
+    console.log('changeUserPassword');
+
+    const params = {
+        result_url: `https://${process.env.WEB_HOST}/login`,
+        user_id: req.params.userId
+    }
+
+    console.log(params);
+
+    getManagementClient()
+        .createPasswordChangeTicket(params)
+        .then(function (ticketResponse) {
+            res.json({ url: ticketResponse.ticket });
+        })
+        .catch(function (err) {
+            // Handle error.
+            console.error(err);
+            returnError(res, err);
+        });
+
 });

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
     Collapse,
     Navbar,
@@ -13,21 +13,23 @@ import {
     DropdownItem
 } from 'reactstrap';
 import { useAuth0 } from "@auth0/auth0-react";
-import logo from "../../images/eldsal-logo.svg";
+import { useUser } from '../../hooks/user';
 
-const SiteHeader = (props) => {
+const AppHeader = (props) => {
+
     const [isOpen, setIsOpen] = useState(false);
 
     const toggle = () => setIsOpen(!isOpen);
 
-    const { user, isAuthenticated, logout } = useAuth0();
+    const { logout } = useAuth0();
+    const { userInfo, isAuthenticated, isAdmin } = useUser();
 
-    if (!isAuthenticated) {
+    if (!isAuthenticated || userInfo == null) {
         return (
             <header class="App-header">
                 <Navbar color="light" light expand="md">
                     <NavbarBrand href="/">
-                        <img src={logo} className="App-logo" alt="Eldsäl" />
+                        <img src="/eldsal.png" className="App-logo" alt="Eldsäl" />
                         <span class="pl-2">Eldsäl</span>
                     </NavbarBrand>
                 </Navbar>
@@ -38,8 +40,8 @@ const SiteHeader = (props) => {
     return (
         <header className="App-header">
             <Navbar color="light" light expand="md">
-                <NavbarBrand href="/">
-                    <img src={logo} className="App-logo" alt="Eldsäl" />
+                <NavbarBrand href="/start">
+                    <img src="/eldsal.png" className="App-logo" alt="Eldsäl" />
                     <span className="pl-2">Eldsäl</span>
                 </NavbarBrand>
                 <NavbarToggler onClick={toggle} />
@@ -50,6 +52,9 @@ const SiteHeader = (props) => {
                         </NavItem>
                         <NavItem>
                             <NavLink href="/subscription">Subscription</NavLink>
+                        </NavItem>
+                        <NavItem hidden={!isAdmin}>
+                            <NavLink href="/admin">Admin</NavLink>
                         </NavItem>
                         <NavItem hidden={!isOpen}>
                             <NavLink href="/profile">Profile</NavLink>
@@ -65,11 +70,11 @@ const SiteHeader = (props) => {
                                     tag="span"
                                     data-toggle="dropdown"
                                 >
-                                    <img className="App-avatar" src={user.picture} alt={user.name} />
+                                    <img className="App-avatar" src={userInfo.picture} alt={userInfo.name} />
                                 </DropdownToggle>
                                 <DropdownMenu
                                     right={true}>
-                                    <DropdownItem>{user.name}</DropdownItem>
+                                    <DropdownItem>{userInfo.name}</DropdownItem>
                                     <DropdownItem divider />
                                     <DropdownItem><NavLink color="link" href="/profile">Profile</NavLink></DropdownItem>
                                     <DropdownItem><NavLink color="link" href="#" onClick={() => logout()}>Logout</NavLink></DropdownItem>
@@ -83,4 +88,4 @@ const SiteHeader = (props) => {
     );
 };
 
-export default SiteHeader;
+export default AppHeader;
