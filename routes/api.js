@@ -4,6 +4,7 @@ const jwt = require('express-jwt');
 const jwtAuthz = require('express-jwt-authz');
 const jwksRsa = require('jwks-rsa');
 const { AuthenticationClient, ManagementClient } = require('auth0');
+const stripe = require('stripe')(process.env.REACT_APP_STRIPE_PRIVATE_KEY_ELDSAL_ORG);
 
 router.get("/test", (req, res) => {
     return res.status(200).json({ success: true })
@@ -30,7 +31,7 @@ const getManagementClient = () => {
 // the Auth0 JSON Web Key Set
 const checkJwt = jwt({
     // Dynamically provide a signing key
-    // based on the kid in the header and 
+    // based on the kid in the header and
     // the signing keys provided by the JWKS endpoint.
     secret: jwksRsa.expressJwtSecret({
         cache: true,
@@ -164,4 +165,42 @@ router.patch('/changeUserPassword/:userId', checkJwt, checkScopes, async functio
             returnError(res, err);
         });
 
+});
+
+
+router.get('/checkout-success',  checkJwt, checkScopes,async (req, res) => {
+
+    const user = await getManagementClient().getUser({id: req.user.sub});
+    console.log(user)
+
+    const session = await stripe.checkout.sessions.retrieve(user.app_metadata.stripe_session);
+    console.log(session);
+
+});
+
+
+router.post('/create-checkout-session',  checkJwt, checkScopes, async (req, res) => {
+
+    console.log(req.user);
+    const user = await getManagementClient().getUser({id: req.user.sub});
+    console.log(user);
+
+    const session = await stripe.checkout.sessions.create({
+        payment_method_types: ['card'],
+        client_reference_id: req.user.sub,
+        customer_email: user.email,
+        line_items: [
+            {
+                price: "price_1HYVf3EWMgPl3cMLH5RDxDwo",
+                quantity: 1,
+            },
+        ],
+        mode: 'subscription',
+        success_url: 'https://local.eldsal.se/subscription',
+        cancel_url: 'https://example.com/cancel',
+    });
+
+    await getManagementClient().updateUser({id: req.user.sub}, {app_metadata: {stripe_session: session.id}});
+
+    res.json({ id: session.id });
 });
