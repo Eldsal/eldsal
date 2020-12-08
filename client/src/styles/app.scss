@@ -59,4 +59,10 @@ $body-bg: white;
     }
 }
 
+/* Nav links */
+
+.nav-tabs .nav-link {
+    cursor: pointer;
+}
+
 @import '~bootstrap/scss/bootstrap.scss';

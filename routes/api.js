@@ -6,17 +6,39 @@ const jwksRsa = require('jwks-rsa');
 const { AuthenticationClient, ManagementClient } = require('auth0');
 const stripe = require('stripe')(process.env.REACT_APP_STRIPE_PRIVATE_KEY_ELDSAL_ORG);
 
-router.get("/test", (req, res) => {
-    return res.status(200).json({ success: true })
-});
-
 module.exports = router;
 
-function returnError(res, statusMessage) {
+/*
+ * FUNCTIONS
+ */
+
+// Return an error response. The error message is included in the response body as JSON
+function returnError(res, statusMessage, statusCode = 500) {
     console.error("ERROR: " + statusMessage);
-    res.status(500).json(statusMessage);
+    res.status(statusCode).json({ error: statusMessage });
 }
 
+
+// Check if a user has a specific role
+// The roles are read from the "roles" property in the users "app_metadata" collection in Auth0.
+// Multiple roles are separated by comma
+const userHasRole = (user, roleName) => {
+
+    if (user && user.app_metadata) {
+        const roles = user.app_metadata.roles;
+
+        if (!roles)
+            return false;
+
+        return roles.replace(/ /g, "").split(",").includes(roleName);
+    }
+    else {
+        return false;
+    }
+}
+
+// Get an Auth0 management client
+// Docs: https://auth0.github.io/node-auth0/module-management.ManagementClient.html
 const getManagementClient = () => {
     return new ManagementClient({
         domain: process.env.AUTH0_MGT_DOMAIN,
@@ -26,9 +48,14 @@ const getManagementClient = () => {
     });
 }
 
+/*
+ * MIDDLEWARE HANDLERS
+ */
+
 // Authorization middleware. When used, the
 // Access Token must exist and be verified against
-// the Auth0 JSON Web Key Set
+// the Auth0 JSON Web Key Set.
+// Note that the access token is not invalidated when the user logs out, it is self-contained
 const checkJwt = jwt({
     // Dynamically provide a signing key
     // based on the kid in the header and
@@ -37,18 +64,58 @@ const checkJwt = jwt({
         cache: true,
         rateLimit: true,
         jwksRequestsPerMinute: 5,
-        jwksUri: `https://login.eldsal.se/.well-known/jwks.json`
+        jwksUri: `https://${process.env.AUTH0_DOMAIN}/.well-known/jwks.json`
     }),
 
     // Validate the audience and the issuer.
     // !!! "audience" should be "https://app.eldsal.se/api/v1" to access our custom API, but that doesn't work right now
-    xaudience: 'https://app.eldsal.se/api/v1',
-    audience: 'https://eldsal.eu.auth0.com/api/v2/',
-    issuer: `https://login.eldsal.se/`,
+    // audience: 'https://app.eldsal.se/api/v1',
+    audience: process.env.AUTH0_MGT_AUDIENCE,
+    issuer: `https://${process.env.AUTH0_DOMAIN}/`,
     algorithms: ['RS256']
 });
 
+// Middleware to check that the submitted parameter "userId" is the the same as the user id in the authentication token. 
+// checkJwt must be called before checkLoggedInUser
+const checkLoggedInUser = (req, res, next) => {
+    if (req.params.userId != req.user.sub) {
+        returnError(res, "No logged in user", 401);
+    }
+    else {
+        next();
+    }
+}
+
+// Middleware to check if a user has the "admin" role
+const checkUserIsAdmin = async (req, res, next) => {
+
+    const params = { id: req.user.sub };
+
+    getManagementClient()
+        .getUser(params)
+        .then(function (user) {
+
+            if (!userHasRole(user, "admin")) {
+                returnError(res, "Admin role required", 403);
+            }
+            else {
+                next();
+            }
+
+        })
+        .catch(function (err) {
+            returnError('Error getting user: ' + err);
+        });
+}
+
+
 const checkScopes = jwtAuthz(['read:current_user']);
+
+
+/*
+ * ROUTES
+ */
+
 
 // TEST: This route doesn't need authentication
 router.get('/public', function (req, res) {
@@ -64,6 +131,27 @@ router.get('/private', checkJwt, async function (req, res) {
     });
 });
 
+router.get('/test', checkJwt, checkUserIsAdmin, async function (req, res) {
+
+    console.log('test');
+    console.log(req.user);
+
+    const userId = req.user.sub;
+
+    const params = { id: userId };
+
+    getManagementClient()
+        .getUser(params)
+        .then(function (user) {
+            res.json(user);
+        })
+        .catch(function (err) {
+            // Handle error.
+            console.error(err);
+            returnError(res, err);
+        });
+});
+
 /* Update a user
  * Argument object:
  *  given_name
@@ -76,10 +164,14 @@ router.get('/private', checkJwt, async function (req, res) {
  *  city
  *  country
  **/
-router.patch('/updateUserProfile/:userId', checkJwt, checkScopes, async function (req, res) {
+router.patch('/updateUserProfile/:userId', checkJwt, checkLoggedInUser, async function (req, res) {
 
     console.log('updateUserProfile');
-    //console.log(req.body);
+
+    const userId = req.params.userId;
+
+    if(userId != req.user.sub)
+        return returnError(res, "You can only update your own user");
 
     const { given_name, family_name, birth_date, phone_number, address_line_1, address_line_2, postal_code, city, country } = req.body;
 
@@ -107,7 +199,7 @@ router.patch('/updateUserProfile/:userId', checkJwt, checkScopes, async function
     if (!country)
         return returnError(res, "Country is required");
 
-    const params = { id: req.params.userId };
+    const params = { id: userId };
 
     const userArgument = {
         name: given_name + " " + family_name,
@@ -137,13 +229,33 @@ router.patch('/updateUserProfile/:userId', checkJwt, checkScopes, async function
 
 });
 
-/* Update a user
+/* Get users
+ **/
+router.get('/getUsers', checkJwt, checkUserIsAdmin, async function (req, res) {
+
+    console.log('getUsers');
+
+    getManagementClient()
+        .getUsers()
+        .then(function (users) {
+            console.log(users);
+            res.json(users);
+        })
+        .catch(function (err) {
+            // Handle error.
+            console.error(err);
+            returnError(res, err);
+        });
+
+});
+
+/* Get an URL to change a user's password (by creating a change password ticket in Auth0)
  * Argument object:
  *  current_password
  *  new_password
  *  verify_password
  **/
-router.patch('/changeUserPassword/:userId', checkJwt, checkScopes, async function (req, res) {
+router.get('/getChangeUserPasswordUrl/:userId', checkJwt, checkScopes, async function (req, res) {
 
     console.log('changeUserPassword');
 
