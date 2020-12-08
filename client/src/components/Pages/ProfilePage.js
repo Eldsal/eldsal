@@ -1,16 +1,14 @@
 import React, { useState, useEffect } from "react";
-import { useAuth0, withAuthenticationRequired } from "@auth0/auth0-react";
+import { withAuthenticationRequired } from "@auth0/auth0-react";
 import AppContent from "../Common/AppContent";
-import axios from "axios";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { useUser } from '../../hooks/user';
+import { useApi } from '../../hooks/api';
 
 const ProfilePage = () => {
 
-    const { user, getAccessTokenSilently } = useAuth0();
-    const { userInfo, isAuthenticated, isUserLoading } = useUser();
-
-    const [error, setError] = useState(false);
+    const { userInfo, isUserLoading } = useUser();
+    const { apiGet, apiPatch } = useApi();
 
     var pageStates = { "view": 0, "updateProfile": 1, "changePassword": 2 };
     const [pageState, setPageState] = useState(pageStates.view);
@@ -49,6 +47,24 @@ const ProfilePage = () => {
     useEffect(() => {
         setIsUpdateProfileFormValid(validateUpdateProfileForm())
     }, [givenName, familyName, phoneNumber, birthDate, addressLine1, postalCode, city, country]) // any state variable(s) included in here will trigger the effect to run
+
+
+    useEffect(() => {
+        if (userInfo == null)
+            return;
+
+        setGivenName(nullIfEmpty(userInfo.given_name))
+        setFamilyName(nullIfEmpty(userInfo.family_name))
+        if (userInfo.user_metadata) {
+            setPhoneNumber(nullIfEmpty(userInfo.user_metadata.phone_number))
+            setAddressLine1(nullIfEmpty(userInfo.user_metadata.address_line_1))
+            setAddressLine2(nullIfEmpty(userInfo.user_metadata.address_line_2))
+            setPostalCode(nullIfEmpty(userInfo.user_metadata.postal_code))
+            setCity(nullIfEmpty(userInfo.user_metadata.city))
+            setCountry(nullIfEmpty(userInfo.user_metadata.country))
+            setBirthDate(nullIfEmpty(userInfo.user_metadata.birth_date))
+        }
+    }, [userInfo]);
 
     const validateUpdateProfileForm = () => {
 
@@ -113,6 +129,7 @@ const ProfilePage = () => {
         return errors === 0;
     }
 
+
     function isEmpty(value) {
         return value === null || value === "" || typeof (value) == "undefined";
     }
@@ -131,23 +148,6 @@ const ProfilePage = () => {
             return value;
     }
 
-    useEffect(() => {
-        if (userInfo == null)
-            return;
-
-        setGivenName(nullIfEmpty(userInfo.given_name))
-        setFamilyName(nullIfEmpty(userInfo.family_name))
-        if (userInfo.user_metadata) {
-            setPhoneNumber(nullIfEmpty(userInfo.user_metadata.phone_number))
-            setAddressLine1(nullIfEmpty(userInfo.user_metadata.address_line_1))
-            setAddressLine2(nullIfEmpty(userInfo.user_metadata.address_line_2))
-            setPostalCode(nullIfEmpty(userInfo.user_metadata.postal_code))
-            setCity(nullIfEmpty(userInfo.user_metadata.city))
-            setCountry(nullIfEmpty(userInfo.user_metadata.country))
-            setBirthDate(nullIfEmpty(userInfo.user_metadata.birth_date))
-        }
-    }, [userInfo]);
-
     const updateProfile = async () => {
 
         setShowValidationForUnmodifiedFields(true);
@@ -157,8 +157,6 @@ const ProfilePage = () => {
         }
 
         setSaveState(saveStates.saving);
-
-        console.log("updateProfile");
 
         var userArgument = {
             given_name: givenName,
@@ -172,78 +170,36 @@ const ProfilePage = () => {
             country: country
         }
 
-        const url = `/api/updateUserProfile/${user.sub}`;
+        console.log(userInfo);
 
-        return getAccessTokenSilently()
-            .then(accessToken => {
-                axios.patch(url, {
-                    ...userArgument
-                },
-                    {
-                        headers: {
-                            Authorization: `Bearer ${accessToken}`,
-                            'Content-Type': 'application/json',
-                        },
-                    }
-                )
-                    .then(
-                        success => {
-                            console.log("save success")
-                            showPage(pageStates.view);
-                            setSaveState(saveStates.savedProfile);
-                        },
-                        fail => {
-                            console.log("save fail")
-                            console.log(fail);
-                            setSaveState(saveStates.errorProfile);
-                        })
-                    .catch(reason => {
-                        setSaveState(saveStates.errorProfile);
-                    })
-            })
+        apiPatch(`updateUserProfile/${userInfo.user_id}`, userArgument)
             .then(
-                success => { },
+                success => {
+                    showPage(pageStates.view);
+                    setSaveState(saveStates.savedProfile);
+                },
                 fail => {
-                    setError(true);
+                    console.log(fail);
                     setSaveState(saveStates.errorProfile);
-                });
+                })
+            .catch(reason => {
+                setSaveState(saveStates.errorProfile);
+            });
     }
 
     const changePassword = async () => {
 
-        console.log("changePassword");
-
-        const url = `/api/changeUserPassword/${user.sub}`;
-
-        return getAccessTokenSilently()
-            .then(accessToken => {
-                axios.patch(url, null,
-                    {
-                        headers: {
-                            Authorization: `Bearer ${accessToken}`,
-                            'Content-Type': 'application/json',
-                        },
-                    }
-                )
-                    .then(
-                        success => {
-                            console.log("save success")
-                            window.location.assign(success.data.url);
-                        },
-                        fail => {
-                            console.log("save fail")
-                            console.log(fail);
-                        })
-                    .catch(reason => {
-                        setSaveState(saveStates.errorPassword);
-                    })
-            })
+        apiGet(`getChangeUserPasswordUrl/${userInfo.user_id}`)
             .then(
-                success => { },
+                success => {
+                    window.location.assign(success.data.url);
+                },
                 fail => {
-                    setError(true);
-                    setSaveState(saveStates.errorPassword);
-                });
+                    console.log("Fail: " + fail);
+                })
+            .catch(reason => {
+                setSaveState(saveStates.errorPassword);
+            });
     }
 
     if (isUserLoading) {
@@ -299,6 +255,10 @@ const ProfilePage = () => {
         switch (pageState) {
             case pageStates.view:
                 return (<div className="mx-auto" style={{ maxWidth: "400px" }}>
+                    <div className="row text-left">
+                        <div className="col-4">Email</div>
+                        <div className="col-8 text-muted" title="Email address can't be changed, it is your login username.">{userInfo == null ? "" : userInfo.email}</div>
+                    </div>
                     <div className="row text-left">
                         <div className="col-4">First name</div>
                         <div className="col-8">{emptyStringIfNull(givenName)}</div>
@@ -399,9 +359,8 @@ const ProfilePage = () => {
     return (
         <AppContent>
             {renderPageHeader()}
-            {error && (<span>Error</span>)}
-            {!error && isUserLoading && (<span><FontAwesomeIcon icon="spinner" spin /> Loading...</span>)}
-            {!error && !isUserLoading && renderPageContent()}
+            {isUserLoading && (<span><FontAwesomeIcon icon="spinner" spin /> Loading...</span>)}
+            {!isUserLoading && renderPageContent()}
             <div className="mt-4">{renderSaveState()}</div>
         </AppContent>
     );

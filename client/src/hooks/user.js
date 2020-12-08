@@ -9,9 +9,15 @@ export const useUser = () => {
     const [userInfo, setUserInfo] = useState(null)
     const [isAdmin, setIsAdmin] = useState(false)
 
-    const loadUser = () => {
+    useEffect(() => {
 
-        console.log("Hook: loadUser");
+        if (!isAuthenticated)
+            return;
+
+        loadUser();
+    }, [user, isAuthenticated]);
+
+    const loadUser = () => {
 
         const url = `${process.env.REACT_APP_API}users/${user.sub}`;
 
@@ -40,7 +46,7 @@ export const useUser = () => {
                 setUserInfo(json);
 
                 if (json.app_metadata) {
-                    if (json.app_metadata.roles == "admin") {
+                    if (json.app_metadata.roles === "admin") {
                         setIsAdmin(true);
                     }
                 }
@@ -50,14 +56,6 @@ export const useUser = () => {
                 return json;
             });
     }
-
-    useEffect(() => {
-        console.log(isAuthenticated)
-        if (!isAuthenticated)
-            return;
-
-        loadUser();
-    }, [user, isAuthenticated]);
 
     return { isUserLoading, isUserError, user, isAuthenticated, userInfo, isAdmin };
 };

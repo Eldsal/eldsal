@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import {
     Collapse,
     Navbar,
@@ -26,11 +26,11 @@ const AppHeader = (props) => {
 
     if (!isAuthenticated || userInfo == null) {
         return (
-            <header class="App-header">
+            <header className="App-header">
                 <Navbar color="light" light expand="md">
                     <NavbarBrand href="/">
                         <img src="/eldsal.png" className="App-logo" alt="Eldsäl" />
-                        <span class="pl-2">Eldsäl</span>
+                        <span className="pl-2">Eldsäl</span>
                     </NavbarBrand>
                 </Navbar>
             </header>
