@@ -1,13 +1,31 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { useAuth0, withAuthenticationRequired } from "@auth0/auth0-react";
 import { loadStripe } from "@stripe/stripe-js";
 import axios from "axios";
 import AppContent from "../Common/AppContent";
 
 const SubscriptionPage = () => {
-  const { user, isAuthenticated, getAccessTokenSilently } = useAuth0();
+  const { getAccessTokenSilently } = useAuth0();
   const stripePromise = loadStripe(process.env.REACT_APP_STRIPE_KEY_ELDSAL_ORG);
+  const [pps, setPps] = useState({ prices: [], products: [] });
 
+  const fetchPrices = async () => {
+    const accessToken = await getAccessTokenSilently();
+
+    const response = await axios.get("/api/prices", {
+      headers: {
+        Authorization: `Bearer ${accessToken}`
+      }
+    });
+
+    setPps(response.data);
+  };
+
+  const getPrice = (id) => {
+    return pps.prices.filter((price) => (price.product === id))[0];
+  };
+
+  useEffect(() => { fetchPrices(); }, [fetchPrices]);
 
   const handleClick = async () => {
     // Get Stripe.js instance
@@ -35,16 +53,12 @@ const SubscriptionPage = () => {
 
   const checkStatus = async () => {
     const accessToken = await getAccessTokenSilently();
-    const response = await axios.get("/api/checkout-success",  {
+    const response = await axios.get("/api/check-stripe-session", {
       headers: {
         Authorization: `Bearer ${accessToken}`
       }
     });
   };
-
-  if (!isAuthenticated) {
-    return <div />;
-  }
 
 
 
@@ -55,7 +69,9 @@ const SubscriptionPage = () => {
 
 
       <button type="button" onClick={handleClick} id="test" className="btn btn-primary">Test</button>
-      <button type="button" onClick={checkStatus} id="test" className="btn btn-primary">Status</button>
+      <button type="button" onClick={checkStatus} id="status" className="btn btn-primary">Status</button>
+
+      {pps.products.map((product) => (<p>{product.name}, {product.description}, {getPrice(product.id).unit_amount / 100} kr</p>))}
 
     </AppContent>
   );

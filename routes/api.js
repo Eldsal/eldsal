@@ -75,7 +75,7 @@ const checkJwt = jwt({
     algorithms: ['RS256']
 });
 
-// Middleware to check that the submitted parameter "userId" is the the same as the user id in the authentication token. 
+// Middleware to check that the submitted parameter "userId" is the the same as the user id in the authentication token.
 // checkJwt must be called before checkLoggedInUser
 const checkLoggedInUser = (req, res, next) => {
     if (req.params.userId != req.user.sub) {
@@ -280,18 +280,37 @@ router.get('/getChangeUserPasswordUrl/:userId', checkJwt, checkScopes, async fun
 });
 
 
-router.get('/checkout-success',  checkJwt, checkScopes,async (req, res) => {
+router.get('/subscription',  checkJwt, async (req, res) => {
 
     const user = await getManagementClient().getUser({id: req.user.sub});
-    console.log(user)
 
-    const session = await stripe.checkout.sessions.retrieve(user.app_metadata.stripe_session);
-    console.log(session);
 
 });
 
+router.get('/prices',  checkJwt, async (req, res) => {
 
-router.post('/create-checkout-session',  checkJwt, checkScopes, async (req, res) => {
+    const user = await getManagementClient().getUser({id: req.user.sub});
+    console.log(user.app_metadata.stripe_session);
+
+    const products = (await stripe.products.list()).data;
+    const prices = (await stripe.prices.list()).data;
+
+    res.json({prices, products});
+});
+
+router.get('/check-stripe-session',  checkJwt, async (req, res) => {
+
+    const user = await getManagementClient().getUser({id: req.user.sub});
+
+    const session = await stripe.checkout.sessions.retrieve(user.app_metadata.stripe_session);
+    await getManagementClient().updateUser({id: req.user.sub}, {app_metadata: {stripe_session: session}});
+    //TODO get subscription id, store in app metadata
+
+    res.json({});
+});
+
+
+router.post('/create-checkout-session',  checkJwt,  async (req, res) => {
 
     console.log(req.user);
     const user = await getManagementClient().getUser({id: req.user.sub});
@@ -308,11 +327,11 @@ router.post('/create-checkout-session',  checkJwt, checkScopes, async (req, res)
             },
         ],
         mode: 'subscription',
-        success_url: 'https://local.eldsal.se/subscription',
-        cancel_url: 'https://example.com/cancel',
+        success_url: 'https://local.eldsal.se/afterpurchase',
+        cancel_url: 'https://local.eldsal.se/subscription',
     });
 
-    await getManagementClient().updateUser({id: req.user.sub}, {app_metadata: {stripe_session: session.id}});
+    await getManagementClient().updateUser({id: req.user.sub}, {app_metadata: {stripe_session: session}});
 
     res.json({ id: session.id });
 });
