@@ -1,7 +1,7 @@
 import React from "react";
 import { withAuthenticationRequired } from "@auth0/auth0-react";
-import AppContent from "../Common/AppContent";
-import { useApi } from '../../hooks/api';
+import AppContent from "../components/common/AppContent";
+import { useApi } from '../hooks/api';
 
 const StartPage = () => {
 
