@@ -26,9 +26,10 @@
     "heroku-ssl-redirect": "^0.0.4",
     "http-proxy-agent": "^4.0.1",
     "https-proxy-agent": "^5.0.0",
+    "json2csv": "^5.0.5",
     "jwks-rsa": "^1.10.0",
     "mongoose": "^5.9.10",
-    "node-auth0": "0.0.7",
+    "node-auth0": "^1.0.0",
     "node-fetch": "^2.6.1",
     "node-patch": "0.0.1",
     "react-use": "^15.3.4"

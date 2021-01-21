@@ -1,7 +1,7 @@
 import React from "react";
 import { useAuth0, withAuthenticationRequired } from "@auth0/auth0-react";
 import Button from "reactstrap/lib/Button";
-import AppContent from "../Common/AppContent";
+import AppContent from "../components/common/AppContent";
 
 const SubscriptionPage = () => {
 

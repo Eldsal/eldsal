@@ -2,6 +2,7 @@ import React from "react";
 import ReactDOM from "react-dom";
 import "./styles/app.scss";
 import { Auth0Provider } from "@auth0/auth0-react";
+import { ModalProvider } from "react-modal-hook";
 import App from "./App";
 import * as serviceWorker from "./serviceWorker";
 
@@ -15,7 +16,9 @@ ReactDOM.render(
         scope="read:current_user update:current_user read:current_user_metadata update:current_user_metadata"
         useRefreshTokens="true"
     >
-        <App />
+        <ModalProvider>
+            <App />
+        </ModalProvider>
     </Auth0Provider>,
     document.getElementById("root")
 );

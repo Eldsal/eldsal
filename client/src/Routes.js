@@ -1,13 +1,13 @@
 import React, { Suspense, lazy } from "react";
 import { withRouter, Switch, Route } from "react-router-dom";
-import PageLoader from "./components/Common/PageLoader";
+import PageLoader from "./components/common/PageLoader";
 
 const waitFor = (Tag) => (props) => <Tag {...props} />;
-const LoginPage = lazy(() => import("./components/Pages/LoginPage"));
-const StartPage = lazy(() => import("./components/Pages/StartPage"));
-const SubscriptionPage = lazy(() => import("./components/Pages/SubscriptionPage"));
-const ProfilePage = lazy(() => import("./components/Pages/ProfilePage"));
-const AdminPage = lazy(() => import("./components/Pages/AdminPage"));
+const LoginPage = lazy(() => import("./pages/LoginPage"));
+const StartPage = lazy(() => import("./pages/StartPage"));
+const SubscriptionPage = lazy(() => import("./pages/SubscriptionPage"));
+const ProfilePage = lazy(() => import("./pages/ProfilePage"));
+const AdminPage = lazy(() => import("./pages/AdminPage"));
 
 const Routes = ({ location }) => (
     <Suspense fallback={<PageLoader />}>

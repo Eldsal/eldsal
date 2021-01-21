@@ -1,5 +1,5 @@
 import React from "react";
-import AppHeader from "../Common/AppHeader";
+import AppHeader from "./AppHeader";
 
 const AppContent = (props) => {
 
