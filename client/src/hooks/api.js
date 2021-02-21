@@ -32,7 +32,18 @@ export const useApi = () => {
             })
     };
 
-    return { apiGet, apiPatch };
+    /**
+     * Get an error message sent by server side (as JSON response body { error: 'message' })
+     * @param {any} error
+     */
+    const apiGetErrorMessage = (error) => {
+        if (error && error.response && error.response.data && error.response.data.error)
+            return error.response.data.error;
+        else
+            return null;
+    }
+
+    return { apiGet, apiPatch, apiGetErrorMessage };
 };
 
 export default useApi;

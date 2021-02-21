@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from "react";
 import { useAuth0, withAuthenticationRequired } from "@auth0/auth0-react";
+import Button from "reactstrap/lib/Button";
+import AppContent from "../components/common/AppContent";
 import { loadStripe } from "@stripe/stripe-js";
 import axios from "axios";
-import AppContent from "../Common/AppContent";
+
 
 const SubscriptionPage = () => {
   const { getAccessTokenSilently } = useAuth0();

@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from "react";
 import { withAuthenticationRequired } from "@auth0/auth0-react";
-import AppContent from "../Common/AppContent";
+import AppContent from "../components/common/AppContent";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { useUser } from '../../hooks/user';
-import { useApi } from '../../hooks/api';
+import { useUser } from '../hooks/user';
+import { useApi } from '../hooks/api';
 
 const ProfilePage = () => {
 
@@ -54,16 +54,15 @@ const ProfilePage = () => {
             return;
 
         setGivenName(nullIfEmpty(userInfo.given_name))
-        setFamilyName(nullIfEmpty(userInfo.family_name))
-        if (userInfo.user_metadata) {
-            setPhoneNumber(nullIfEmpty(userInfo.user_metadata.phone_number))
-            setAddressLine1(nullIfEmpty(userInfo.user_metadata.address_line_1))
-            setAddressLine2(nullIfEmpty(userInfo.user_metadata.address_line_2))
-            setPostalCode(nullIfEmpty(userInfo.user_metadata.postal_code))
-            setCity(nullIfEmpty(userInfo.user_metadata.city))
-            setCountry(nullIfEmpty(userInfo.user_metadata.country))
-            setBirthDate(nullIfEmpty(userInfo.user_metadata.birth_date))
-        }
+        setFamilyName(nullIfEmpty(userInfo.family_name))        
+        setPhoneNumber(nullIfEmpty(userInfo.phone_number))
+        setAddressLine1(nullIfEmpty(userInfo.address_line_1))
+        setAddressLine2(nullIfEmpty(userInfo.address_line_2))
+        setPostalCode(nullIfEmpty(userInfo.postal_code))
+        setCity(nullIfEmpty(userInfo.city))
+        setCountry(nullIfEmpty(userInfo.country))
+        setBirthDate(nullIfEmpty(userInfo.birth_date))
+        
     }, [userInfo]);
 
     const validateUpdateProfileForm = () => {
@@ -170,8 +169,6 @@ const ProfilePage = () => {
             country: country
         }
 
-        console.log(userInfo);
-
         apiPatch(`updateUserProfile/${userInfo.user_id}`, userArgument)
             .then(
                 success => {
@@ -254,7 +251,7 @@ const ProfilePage = () => {
     const renderPageContent = () => {
         switch (pageState) {
             case pageStates.view:
-                return (<div className="mx-auto" style={{ maxWidth: "400px" }}>
+                return (<div style={{ maxWidth: "400px" }}>
                     <div className="row text-left">
                         <div className="col-4">Email</div>
                         <div className="col-8 text-muted" title="Email address can't be changed, it is your login username.">{userInfo == null ? "" : userInfo.email}</div>
@@ -300,7 +297,7 @@ const ProfilePage = () => {
                 </div>);
 
             case pageStates.updateProfile:
-                return (<div className="mx-auto" style={{ maxWidth: "500px" }}>
+                return (<div style={{ maxWidth: "500px" }}>
                     <div className="form-group">
                         <label htmlFor="inp_given_name">First name</label>
                         <input id="inp_given_name" value={emptyStringIfNull(givenName)} onChange={(evt) => setGivenName(evt.target.value)} type="text" className="form-control" placeholder="First name" required />

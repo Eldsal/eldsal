@@ -1,8 +1,10 @@
 import { useState, useEffect } from "react";
 import { useAuth0 } from "@auth0/auth0-react";
+import { useApi } from '../hooks/api';
 
 export const useUser = () => {
-    const { user, isAuthenticated, getAccessTokenSilently } = useAuth0();
+    const { user, isAuthenticated } = useAuth0();
+    const { apiGet } = useApi();
 
     const [isUserLoading, setUserIsLoading] = useState(true)
     const [isUserError, setUserIsError] = useState(false)
@@ -19,42 +21,19 @@ export const useUser = () => {
 
     const loadUser = () => {
 
-        const url = `${process.env.REACT_APP_API}users/${user.sub}`;
-
-        return getAccessTokenSilently()
-            .then(accessToken => fetch(url, {
-                headers: {
-                    Authorization: `Bearer ${accessToken}`,
-                    'Content-Type': 'application/json',
-                }
-            }))
-            .then(res => {
-                return res;
-            })
-            .then(res => {
-                if (res.ok) {
-                    return res;
-                }
-                else {
+        apiGet(`getLoggedInUser`)
+            .then(
+                (response) => {
+                    var user = response.data;
+                    setUserInfo(user);
+                    setIsAdmin(user.admin);
+                    setUserIsLoading(false);
+                },
+                (fail) => {
                     setUserIsError(true);
                     setUserIsLoading(false);
-                    return Promise.reject(res);
                 }
-            })
-            .then(res => res.json())
-            .then(json => {
-                setUserInfo(json);
-
-                if (json.app_metadata) {
-                    if (json.app_metadata.roles === "admin") {
-                        setIsAdmin(true);
-                    }
-                }
-
-                setUserIsLoading(false);
-
-                return json;
-            });
+            );
     }
 
     return { isUserLoading, isUserError, user, isAuthenticated, userInfo, isAdmin };
