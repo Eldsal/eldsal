@@ -1,7 +1,7 @@
 import React, { useEffect } from "react";
 import { useAuth0, withAuthenticationRequired } from "@auth0/auth0-react";
 import axios from "axios";
-import AppContent from "../Common/AppContent";
+import AppContent from "../common/AppContent";
 
 const AfterPurchasePage = () => {
   const { getAccessTokenSilently } = useAuth0();
