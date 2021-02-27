@@ -5,6 +5,8 @@ const jwtAuthz = require('express-jwt-authz');
 const jwksRsa = require('jwks-rsa');
 const { AuthenticationClient, ManagementClient } = require('auth0');
 const stripe = require('stripe')(process.env.REACT_APP_STRIPE_PRIVATE_KEY_ELDSAL_ORG);
+const stripe_membfee = require('stripe')(process.env.REACT_APP_STRIPE_PRIVATE_KEY_ELDSAL_ORG);
+const stripe_housecard = require('stripe')(process.env.REACT_APP_STRIPE_PRIVATE_KEY_ELDSAL_AB);
 const { Parser } = require('json2csv');
 
 module.exports = router;
@@ -989,58 +991,84 @@ router.get('/admin/get-subscriptions', checkJwt, checkUserIsAdmin, async (req, r
 });
 
 
-router.get('/subscription',  checkJwt, async (req, res) => {
+router.get('/subscriptions',  checkJwt, async (req, res) => {
 
     const user = await getManagementClient().getUser({id: req.user.sub});
 
+    const membfeeResponse = await getStripeClient("membfee").subscriptions.list({customer: user.app_metadata.stripe_customer_membfee});
+    const housecardResponse = await getStripeClient("housecard").subscriptions.list({customer: user.app_metadata.stripe_customer_housecard});
 
+    res.json({membfeeSubs: membfeeResponse.data, housecardSubs: housecardResponse.data});
 });
 
 router.get('/prices',  checkJwt, async (req, res) => {
 
     const user = await getManagementClient().getUser({id: req.user.sub});
-    console.log(user.app_metadata.stripe_session);
-
-    const products = (await stripe.products.list()).data;
-    const prices = (await stripe.prices.list()).data;
+    const flavour = req.query.flavour;
+    const products = (await getStripeClient(flavour).products.list({limit : 100})).data;
+    const prices = (await getStripeClient(flavour).prices.list({limit : 100})).data;
 
     res.json({prices, products});
+
 });
 
 router.get('/check-stripe-session',  checkJwt, async (req, res) => {
 
+    const flavour = req.query.flavour;
     const user = await getManagementClient().getUser({id: req.user.sub});
 
-    const session = await stripe.checkout.sessions.retrieve(user.app_metadata.stripe_session);
-    await getManagementClient().updateUser({id: req.user.sub}, {app_metadata: {stripe_session: session}});
-    //TODO get subscription id, store in app metadata
+    const session = await getStripeClient(flavour).checkout.sessions.retrieve(user.app_metadata.stripe_session_id);
+
+    await getManagementClient().updateUser({id: req.user.sub}, {app_metadata: {["stripe_customer_" + flavour]: session.customer,
+                                                                                            ["stripe_status_" + flavour]: session.payment_status,
+                                                                                          }});
 
     res.json({});
 });
 
+const getStripeClient = (flavour) => {
+    if (flavour === "membfee") {
+        return stripe_membfee;
+    } else if (flavour === "housecard") {
+        return stripe_housecard;
+    }
+};
 
 router.post('/create-checkout-session',  checkJwt,  async (req, res) => {
 
-    console.log(req.user);
-    const user = await getManagementClient().getUser({id: req.user.sub});
-    console.log(user);
+    const flavour = req.query.flavour;
+    const price = req.query.price;
 
-    const session = await stripe.checkout.sessions.create({
+    console.log(price);
+
+    const user = await getManagementClient().getUser({id: req.user.sub});
+
+    let sessionObj = {
         payment_method_types: ['card'],
         client_reference_id: req.user.sub,
-        customer_email: user.email,
         line_items: [
             {
-                price: "price_1HYVf3EWMgPl3cMLH5RDxDwo",
+                price: price,
                 quantity: 1,
             },
         ],
         mode: 'subscription',
-        success_url: 'https://local.eldsal.se/afterpurchase',
+        success_url: 'https://local.eldsal.se/afterpurchase?flavour=' + flavour,
         cancel_url: 'https://local.eldsal.se/subscription',
-    });
+    };
 
-    await getManagementClient().updateUser({id: req.user.sub}, {app_metadata: {stripe_session: session}});
+
+    if (user.app_metadata["stripe_customer_" + flavour]) {
+        sessionObj = { ...sessionObj, customer : user.app_metadata["stripe_customer_" + flavour]};
+    } else {
+        sessionObj = { ...sessionObj, customer_email : user.email};
+    }
+
+    console.log(sessionObj);
+
+    const session = await getStripeClient(flavour).checkout.sessions.create(sessionObj);
+
+    await getManagementClient().updateUser({id: req.user.sub}, {app_metadata: {stripe_session_id: session.id}});
 
     res.json({ id: session.id });
 });

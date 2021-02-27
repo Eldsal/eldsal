@@ -1,14 +1,21 @@
-import React, { useEffect } from "react";
-import { useAuth0, withAuthenticationRequired } from "@auth0/auth0-react";
+import React, {useEffect} from "react";
+import {useLocation} from "react-router-dom";
+import {useAuth0, withAuthenticationRequired} from "@auth0/auth0-react";
 import axios from "axios";
 import AppContent from "../common/AppContent";
 
+function useQuery() {
+  return new URLSearchParams(useLocation().search);
+}
+
 const AfterPurchasePage = () => {
   const { getAccessTokenSilently } = useAuth0();
+  const query = useQuery();
 
   const checkStatus = async () => {
+    const flavour = query.get("flavour");
     const accessToken = await getAccessTokenSilently();
-    await axios.get("/api/check-stripe-session", {
+    await axios.get(`/api/check-stripe-session?flavour=${flavour}`, {
       headers: {
         Authorization: `Bearer ${accessToken}`
       }
@@ -16,9 +23,8 @@ const AfterPurchasePage = () => {
   };
 
   useEffect(() => {
-    checkStatus();
-    window.location.href = "/subscription";
-  }, [checkStatus]);
+    checkStatus().then(window.location.href = "/subscription");
+  }, []);
 
   return (
     <AppContent>
