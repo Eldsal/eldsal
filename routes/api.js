@@ -462,11 +462,42 @@ router.patch('/updateUserProfile/:userId', checkJwt, checkLoggedInUser, async fu
 
 });
 
+/* Get an URL to change a user's password (by creating a change password ticket in Auth0)
+ * Argument object:
+ *  current_password
+ *  new_password
+ *  verify_password
+ **/
+router.get('/getChangeUserPasswordUrl/:userId', checkJwt, checkScopes, async function (req, res) {
+
+    console.log('changeUserPassword');
+
+    const params = {
+        result_url: `https://${process.env.WEB_HOST}/login`,
+        user_id: req.params.userId
+    }
+
+    getManagementClient()
+        .createPasswordChangeTicket(params)
+        .then(function (ticketResponse) {
+            res.json({ url: ticketResponse.ticket });
+        })
+        .catch(function (err) {
+            // Handle error.
+            console.error(err);
+            returnError(res, err);
+        });
+
+});
+
+/** ADMIN */
+
+
 /* Get users
  **/
-router.get('/getUsers', checkJwt, checkUserIsAdmin, async function (req, res) {
+router.get('/admin/get-users', checkJwt, checkUserIsAdmin, async function (req, res) {
 
-    console.log('getUsers');
+    console.log('admin/get-users');
 
     getManagementClient()
         .getUsers()
@@ -484,9 +515,9 @@ router.get('/getUsers', checkJwt, checkUserIsAdmin, async function (req, res) {
 
 /* Export users as CSV file
  **/
-router.get('/exportUsers', checkJwt, checkUserIsAdmin, async function (req, res) {
+router.get('/admin/export-users', checkJwt, checkUserIsAdmin, async function (req, res) {
 
-    console.log('exportUsers');
+    console.log('admin/export-users');
 
     const formatDate = (date) =>
     {
@@ -609,33 +640,7 @@ router.get('/exportUsers', checkJwt, checkUserIsAdmin, async function (req, res)
         });
 });
 
-/* Get an URL to change a user's password (by creating a change password ticket in Auth0)
- * Argument object:
- *  current_password
- *  new_password
- *  verify_password
- **/
-router.get('/getChangeUserPasswordUrl/:userId', checkJwt, checkScopes, async function (req, res) {
 
-    console.log('changeUserPassword');
-
-    const params = {
-        result_url: `https://${process.env.WEB_HOST}/login`,
-        user_id: req.params.userId
-    }
-
-    getManagementClient()
-        .createPasswordChangeTicket(params)
-        .then(function (ticketResponse) {
-            res.json({ url: ticketResponse.ticket });
-        })
-        .catch(function (err) {
-            // Handle error.
-            console.error(err);
-            returnError(res, err);
-        });
-
-});
 
 /* Update membership fee payment for user
  * Argument object:
@@ -644,9 +649,9 @@ router.get('/getChangeUserPasswordUrl/:userId', checkJwt, checkScopes, async fun
  *  payedUntil: date (YYYY-MM-DD)
  *  amount: number (yearly amount)
  **/
-router.patch('/updateUserMembership/:userId', checkJwt, checkUserIsAdmin, async function (req, res) {
+router.patch('/admin/update-user-membership/:userId', checkJwt, checkUserIsAdmin, async function (req, res) {
 
-    console.log('updateUserMembership');
+    console.log('admin/update-user-membership');
 
     const userId = req.params.userId;
     console.log(userId);
@@ -733,9 +738,9 @@ router.patch('/updateUserMembership/:userId', checkJwt, checkUserIsAdmin, async 
  *  payedUntil: date (YYYY-MM-DD)
  *  amount: number (monthly amount, regardless of the period actually payed)
  **/
-router.patch('/updateUserHousecard/:userId', checkJwt, checkUserIsAdmin, async function (req, res) {
+router.patch('/admin/update-user-housecard/:userId', checkJwt, checkUserIsAdmin, async function (req, res) {
 
-    console.log('updateUserHousecard');
+    console.log('admin/update-user-housecard');
 
     const userId = req.params.userId;
     console.log(userId);
@@ -813,6 +818,174 @@ router.patch('/updateUserHousecard/:userId', checkJwt, checkUserIsAdmin, async f
             console.error(err);
             internalServerError(res, err);
         });
+});
+
+class UserSubscriptionInfo {
+    constructor(user, email) {
+        this.user = user;
+        this.email = email;
+        this.membfee_customer = null;
+        this.membfee_subscriptions = [];
+        this.housecard_customer = null;
+        this.housecard_subscriptions = [];
+        this.dummy_user_id = null;
+    }
+}
+
+class UserSubscriptionResultObject {
+    // Pass a UserSubscriptionInfo object as argument
+    constructor(info) {
+        this.email = info.email;
+        if (info.user) {
+            this.is_existing_user = true;
+            this.user_id = info.user.user_id;
+            this.user_name = info.user.name;
+            this.user_given_name = info.user.given_name;
+            this.user_family_name = info.user.family_name;
+
+            if (!this.user_name && (this.user_given_name || this.user_family_name)) {
+                this.user_name = this.user_given_name + " " + this.user_family_name;
+            }
+        }
+        else {
+            this.is_existing_user = false;
+            this.user_id = info.dummy_user_id;
+            this.user_name = 'Non-existing user';
+        }
+
+        if (info.membfee_customer) {
+            this.membfee_stripe_customer_id = info.membfee_customer.id;
+        }
+        else {
+            this.membfee_stripe_customer_id = null;
+        }
+
+        if (info.membfee_subscriptions) {
+            this.membfee_subscriptions = info.membfee_subscriptions;
+        }
+        else {
+            this.membfee_subscriptions = [];
+        }
+
+        if (info.housecard_customer) {
+            this.housecard_stripe_customer_id = info.housecard_customer.id;
+        }
+        else {
+            this.housecard_stripe_customer_id = null;
+        }
+
+        if (info.housecard_subscriptions) {
+            this.housecard_subscriptions = info.housecard_subscriptions;
+        }
+        else {
+            this.housecard_subscriptions = [];
+        }
+    }
+}
+
+class StripeSubscriptionInfo {
+    // Pass a Stripe subscription object, and a list of Stripe products
+    constructor(sub, products) {
+        this.subscription_id = sub.id;
+        this.current_period_start = sub.current_period_start;
+        this.current_period_end = sub.current_period_end;
+
+        if (sub.plan) {
+            this.price_id = sub.plan.id;
+            this.amount = sub.plan.amount / 100; // "amount" is in "cents", i.e. "ören"
+            this.currency = sub.plan.currency;
+            this.interval = sub.plan.interval;
+            this.interval_count = sub.plan.interval_count;
+            this.product_id = sub.plan.product;
+
+            var productSearch = products.filter(x => x.id == this.product_id);
+
+            if (productSearch && productSearch.length == 1) {
+                var product = productSearch[0];
+                this.product_name = product.name;
+            }
+            else {
+                this.product_name = sub.plan.product_id;
+            }
+        }
+        else {
+            this.price_id = null;
+            this.amount = null;
+            this.currency = null;
+            this.interval = null;
+            this.interval_count = null;
+            this.product_id = null;
+            this.product_name = null;
+        }
+    }
+}
+
+/** Get a list of Stripe subscriptions */
+router.get('/admin/get-subscriptions', checkJwt, checkUserIsAdmin, async (req, res) => {
+
+    console.log('admin/get-subscriptions');
+
+    const users = (await getManagementClient().getUsers());
+
+    const userInfo = users.map(x => new UserSubscriptionInfo(x, x.email));
+    let nextDummyUserId = -1;
+
+    const userInfoByEmail = {};
+    userInfo.forEach(x => userInfoByEmail[x.email] = x);
+
+    const customers = (await stripe.customers.list()).data;
+
+    const products = (await stripe.products.list()).data;
+
+    for (var c of customers) {
+        const email = c.email;
+        let user = userInfoByEmail[email];
+        if (user) {
+            user.membfee_customer = c;
+            c._user = user;
+        }
+        else {
+            c._user = null;
+        }
+    }
+
+    const customersById = {};
+    customers.forEach(x => customersById[x.id] = x);
+
+    const subscriptions = (await stripe.subscriptions.list()).data;
+
+    for (var s of subscriptions) {
+        const customerId = s.customer;
+        let customer = customersById[customerId];
+        let createDummyUser = false;
+        if (customer) {
+            if (!customer._user) {
+                // A subscription is found, but the customer is not linked to a user - create a dummy user
+                createDummyUser = true;
+            }
+        }
+        else {
+            // Customer not found - create "dummy" customer
+            customer = { id: customerId };
+            createDummyUser = true;
+        }
+
+        if (createDummyUser) {
+            const dummyUser = new UserSubscriptionInfo(null, null);
+            dummyUser.dummy_user_id = nextDummyUserId--;
+            dummyUser.membfee_customer = customer;
+            customer._user = dummyUser;
+            userInfo.push(dummyUser);
+        }
+
+        customer._user.membfee_subscriptions.push(new StripeSubscriptionInfo(s, products));
+    }
+
+    let result = userInfo.map(x => new UserSubscriptionResultObject(x));
+
+    console.log(result);
+
+    res.json(result);
 });
 
 

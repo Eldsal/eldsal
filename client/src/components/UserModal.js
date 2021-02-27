@@ -83,7 +83,7 @@ export const UserModal = ({ user, hideModal }) => {
         setEditMembershipSaveError(false);
         setEditMembershipSaveErrorMessage(null);
 
-        apiPatch(`updateUserMembership/${user.user_id}`, args)
+        apiPatch(`admin/update-user-membership/${user.user_id}`, args)
             .then(
                 success => {
                     console.log("Success");
@@ -123,7 +123,7 @@ export const UserModal = ({ user, hideModal }) => {
         setEditHousecardSaveError(false);
         setEditHousecardSaveErrorMessage(null);
 
-        apiPatch(`updateUserHousecard/${user.user_id}`, args)
+        apiPatch(`admin/update-user-housecard/${user.user_id}`, args)
             .then(
                 success => {
                     console.log("Success");
@@ -178,10 +178,10 @@ export const UserModal = ({ user, hideModal }) => {
 
     return (
         <CommonModal hideModal={hideModal}>
-            <h3>User</h3>
+            <h3>Member</h3>
             {user ?
                 <>
-                    <p>Details for user "{user.name}"</p>
+                    <p>Details for member "{user.name}"</p>
                     <table className="table table-sm">
                         <tbody>
                             <tr>

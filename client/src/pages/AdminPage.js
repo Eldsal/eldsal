@@ -7,6 +7,7 @@ import { withAuthenticationRequired } from "@auth0/auth0-react";
 import AppContent from "../components/common/AppContent";
 import { useUser } from '../hooks/user';
 import AdminUserList from "../components/AdminUserList";
+import AdminSubscriptionList from "../components/AdminSubscriptionList";
 
 const AdminPage = () => {
 
@@ -44,7 +45,15 @@ const AdminPage = () => {
                             className={classnames({ active: activeTab === 'users' })}
                             onClick={() => { toggleTab('users'); }}
                         >
-                            Users
+                            Members
+                        </NavLink>
+                    </NavItem>
+                    <NavItem>
+                        <NavLink
+                            className={classnames({ active: activeTab === 'subscriptions' })}
+                            onClick={() => { toggleTab('subscriptions'); }}
+                        >
+                            Subscriptions
                         </NavLink>
                     </NavItem>
                 </Nav>
@@ -54,6 +63,9 @@ const AdminPage = () => {
                     </TabPane>
                     <TabPane tabId="users">
                         {activeTab === "users" && (<AdminUserList />)}
+                    </TabPane>
+                    <TabPane tabId="subscriptions">
+                        {activeTab === "subscriptions" && (<AdminSubscriptionList />)}
                     </TabPane>
                 </TabContent>
             </AppContent >
