@@ -4,7 +4,6 @@ const jwt = require('express-jwt');
 const jwtAuthz = require('express-jwt-authz');
 const jwksRsa = require('jwks-rsa');
 const { AuthenticationClient, ManagementClient } = require('auth0');
-const stripe = require('stripe')(process.env.REACT_APP_STRIPE_PRIVATE_KEY_ELDSAL_ORG);
 const stripe_membfee = require('stripe')(process.env.REACT_APP_STRIPE_PRIVATE_KEY_ELDSAL_ORG);
 const stripe_housecard = require('stripe')(process.env.REACT_APP_STRIPE_PRIVATE_KEY_ELDSAL_AB);
 const { Parser } = require('json2csv');
@@ -505,7 +504,7 @@ router.get('/admin/get-users', checkJwt, checkUserIsAdmin, async function (req, 
         .getUsers()
         .then(function (users) {
             // Filter out only users from the connection specified in the env file
-            res.json(users.filter(user => isUserInCurrentConnection(user)).map(user=>getUserClientObject(user)).sort((a, b) => stringCompare(a.name, b.name)));
+            res.json(users.filter(user => isUserInCurrentConnection(user)).map(user => getUserClientObject(user)).sort((a, b) => stringCompare(a.name, b.name)));
         })
         .catch(function (err) {
             // Handle error.
@@ -521,8 +520,7 @@ router.get('/admin/export-users', checkJwt, checkUserIsAdmin, async function (re
 
     console.log('admin/export-users');
 
-    const formatDate = (date) =>
-    {
+    const formatDate = (date) => {
         if (date) {
             return new Intl.DateTimeFormat('sv-SE').format(date);
         }
@@ -688,7 +686,7 @@ router.patch('/admin/update-user-membership/:userId', checkJwt, checkUserIsAdmin
 
             var payedUntilDate = new Date(payedUntil);
 
-            if(payedUntilDate <= new Date())
+            if (payedUntilDate <= new Date())
                 return badRequest(res, "Payed until must be a future date");
 
             argPayedUntil = payedUntil;
@@ -784,7 +782,7 @@ router.patch('/admin/update-user-housecard/:userId', checkJwt, checkUserIsAdmin,
 
             // Amount
             argAmount = parseInt(amount);
-            if(isNaN(argAmount) || argAmount < 0)
+            if (isNaN(argAmount) || argAmount < 0)
                 return badRequest(res, "Invalid amount");
 
             break;
@@ -824,13 +822,21 @@ router.patch('/admin/update-user-housecard/:userId', checkJwt, checkUserIsAdmin,
 
 class UserSubscriptionInfo {
     constructor(user, email) {
-        this.user = user;
+        this.user = user; // Auth0 user
         this.email = email;
-        this.membfee_customer = null;
+        this.membfee_customer = null; // Stripe customer
         this.membfee_subscriptions = [];
-        this.housecard_customer = null;
+        this.housecard_customer = null; // Stripe customer
         this.housecard_subscriptions = [];
         this.dummy_user_id = null;
+        if (user && user.app_metadata) {
+            this.stripe_customer_membfee = user.app_metadata.stripe_customer_membfee;
+            this.stripe_customer_housecard = user.app_metadata.stripe_customer_housecard;
+        }
+        else {
+            this.stripe_customer_membfee = null;
+            this.stripe_customer_housecard = null;
+        }
     }
 }
 
@@ -930,20 +936,112 @@ router.get('/admin/get-subscriptions', checkJwt, checkUserIsAdmin, async (req, r
     const users = (await getManagementClient().getUsers());
 
     const userInfo = users.map(x => new UserSubscriptionInfo(x, x.email));
-    let nextDummyUserId = -1;
 
-    const userInfoByEmail = {};
-    userInfo.forEach(x => userInfoByEmail[x.email] = x);
+    const userInfoByMembfeeCustomer = {};
+    userInfo.forEach(x => {
+        var stripeCustomer = x.stripe_customer_membfee;
+        if (stripeCustomer) {
+            userInfoByMembfeeCustomer[stripeCustomer] = x;
+        }
+    });
 
-    const customers = (await stripe.customers.list()).data;
+    const userInfoByHousecardCustomer = {};
+    userInfo.forEach(x => {
+        var stripeCustomer = x.stripe_customer_housecard;
+        if (stripeCustomer) {
+            userInfoByHousecardCustomer[stripeCustomer] = x;
+        }
+    });
+    // Membership
 
-    const products = (await stripe.products.list()).data;
+    await readSubscriptions(
+        stripe_membfee,
+        userInfoByMembfeeCustomer,
+        (user) => userInfo.push(user),
+        (user, customer) => user.membfee_customer = customer,
+        (user, subscription) => user.membfee_subscriptions.push(subscription));
+
+    await readSubscriptions(
+        stripe_housecard,
+        userInfoByHousecardCustomer,
+        (user) => userInfo.push(user),
+        (user, customer) => user.housecard_customer = customer,
+        (user, subscription) => user.housecard_subscriptions.push(subscription));
+
+    let result = userInfo.map(x => new UserSubscriptionResultObject(x));
+
+    res.json(result);
+
+});
+
+
+router.get('/user-subscriptions', checkJwt, async (req, res) => {
+
+    console.log('user-subscriptions');
+
+    const user = await getManagementClient().getUser({ id: req.user.sub });
+
+    const userInfo = new UserSubscriptionInfo(user, user.email);
+
+    const userInfoByMembfeeCustomer = {};
+    userInfoByMembfeeCustomer[userInfo.stripe_customer_membfee] = userInfo;
+
+    const userInfoByHousecardCustomer = {};
+    userInfoByHousecardCustomer[userInfo.stripe_customer_housecard] = userInfo;
+
+
+    await readSubscriptions(
+        stripe_membfee,
+        userInfoByMembfeeCustomer,
+        (user) => { },
+        (user, customer) => user.membfee_customer = customer,
+        (user, subscription) => { user.membfee_subscriptions.push(subscription) });
+
+    await readSubscriptions(
+        stripe_housecard,
+        userInfoByHousecardCustomer,
+        (user) => {},
+        (user, customer) => user.housecard_customer = customer,
+        (user, subscription) => user.housecard_subscriptions.push(subscription));
+
+    res.json(new UserSubscriptionResultObject(userInfo));
+});
+
+async function readPagedStripeData(listFunc, args = null, limit = 100) {
+    let read = true;
+    let startingAfter = null;
+    let allData = [];
+    while (read) {
+        let _args = {
+            ...args,
+            limit
+        };
+        if (startingAfter) {
+            _args.starting_after = startingAfter;
+        }
+        let response = await listFunc(_args);
+        let data = response.data
+        allData = allData.concat(data);
+        if (response.has_more) {
+            startingAfter = data[data.length - 1].id;
+        }
+        else {
+            read = false;
+        }
+    }
+    return allData;
+}
+
+async function readSubscriptions(stripe, userInfoByStripeCustomer, addDummyUserFunc, addCustomerFunc, addSubscriptionFunc) {
+    const customers = await readPagedStripeData((args) => stripe.customers.list(args));
+
+    const products = await readPagedStripeData((args) => stripe.products.list(args));
 
     for (var c of customers) {
         const email = c.email;
-        let user = userInfoByEmail[email];
+        let user = userInfoByStripeCustomer[c.id];
         if (user) {
-            user.membfee_customer = c;
+            addCustomerFunc(user, c);
             c._user = user;
         }
         else {
@@ -954,7 +1052,9 @@ router.get('/admin/get-subscriptions', checkJwt, checkUserIsAdmin, async (req, r
     const customersById = {};
     customers.forEach(x => customersById[x.id] = x);
 
-    const subscriptions = (await stripe.subscriptions.list()).data;
+    let subscriptions = await readPagedStripeData((args) => stripe.subscriptions.list(args));
+
+    let nextDummyUserId = -1;
 
     for (var s of subscriptions) {
         const customerId = s.customer;
@@ -975,53 +1075,49 @@ router.get('/admin/get-subscriptions', checkJwt, checkUserIsAdmin, async (req, r
         if (createDummyUser) {
             const dummyUser = new UserSubscriptionInfo(null, null);
             dummyUser.dummy_user_id = nextDummyUserId--;
-            dummyUser.membfee_customer = customer;
+            addCustomerFunc(dummyUser, customer);
             customer._user = dummyUser;
-            userInfo.push(dummyUser);
+            addDummyUserFunc(dummyUser);
         }
 
-        customer._user.membfee_subscriptions.push(new StripeSubscriptionInfo(s, products));
+        addSubscriptionFunc(customer._user, new StripeSubscriptionInfo(s, products));
     }
+}
 
-    let result = userInfo.map(x => new UserSubscriptionResultObject(x));
+router.get('/subscriptions', checkJwt, async (req, res) => {
 
-    console.log(result);
+    const user = await getManagementClient().getUser({ id: req.user.sub });
 
-    res.json(result);
+    const membfeeResponse = await getStripeClient("membfee").subscriptions.list({ customer: user.app_metadata.stripe_customer_membfee });
+    const housecardResponse = await getStripeClient("housecard").subscriptions.list({ customer: user.app_metadata.stripe_customer_housecard });
+
+    res.json({ membfeeSubs: membfeeResponse.data, housecardSubs: housecardResponse.data });
 });
 
+router.get('/prices', checkJwt, async (req, res) => {
 
-router.get('/subscriptions',  checkJwt, async (req, res) => {
-
-    const user = await getManagementClient().getUser({id: req.user.sub});
-
-    const membfeeResponse = await getStripeClient("membfee").subscriptions.list({customer: user.app_metadata.stripe_customer_membfee});
-    const housecardResponse = await getStripeClient("housecard").subscriptions.list({customer: user.app_metadata.stripe_customer_housecard});
-
-    res.json({membfeeSubs: membfeeResponse.data, housecardSubs: housecardResponse.data});
-});
-
-router.get('/prices',  checkJwt, async (req, res) => {
-
-    const user = await getManagementClient().getUser({id: req.user.sub});
+    const user = await getManagementClient().getUser({ id: req.user.sub });
     const flavour = req.query.flavour;
-    const products = (await getStripeClient(flavour).products.list({limit : 100})).data;
-    const prices = (await getStripeClient(flavour).prices.list({limit : 100})).data;
+    const products = (await getStripeClient(flavour).products.list({ limit: 100 })).data;
+    const prices = (await getStripeClient(flavour).prices.list({ limit: 100 })).data;
 
-    res.json({prices, products});
+    res.json({ prices, products });
 
 });
 
-router.get('/check-stripe-session',  checkJwt, async (req, res) => {
+router.get('/check-stripe-session', checkJwt, async (req, res) => {
 
     const flavour = req.query.flavour;
-    const user = await getManagementClient().getUser({id: req.user.sub});
+    const user = await getManagementClient().getUser({ id: req.user.sub });
 
     const session = await getStripeClient(flavour).checkout.sessions.retrieve(user.app_metadata.stripe_session_id);
 
-    await getManagementClient().updateUser({id: req.user.sub}, {app_metadata: {["stripe_customer_" + flavour]: session.customer,
-                                                                                            ["stripe_status_" + flavour]: session.payment_status,
-                                                                                          }});
+    await getManagementClient().updateUser({ id: req.user.sub }, {
+        app_metadata: {
+            ["stripe_customer_" + flavour]: session.customer,
+            ["stripe_status_" + flavour]: session.payment_status,
+        }
+    });
 
     res.json({});
 });
@@ -1034,14 +1130,14 @@ const getStripeClient = (flavour) => {
     }
 };
 
-router.post('/create-checkout-session',  checkJwt,  async (req, res) => {
+router.post('/create-checkout-session', checkJwt, async (req, res) => {
 
     const flavour = req.query.flavour;
     const price = req.query.price;
 
     console.log(price);
 
-    const user = await getManagementClient().getUser({id: req.user.sub});
+    const user = await getManagementClient().getUser({ id: req.user.sub });
 
     let sessionObj = {
         payment_method_types: ['card'],
@@ -1059,16 +1155,16 @@ router.post('/create-checkout-session',  checkJwt,  async (req, res) => {
 
 
     if (user.app_metadata["stripe_customer_" + flavour]) {
-        sessionObj = { ...sessionObj, customer : user.app_metadata["stripe_customer_" + flavour]};
+        sessionObj = { ...sessionObj, customer: user.app_metadata["stripe_customer_" + flavour] };
     } else {
-        sessionObj = { ...sessionObj, customer_email : user.email};
+        sessionObj = { ...sessionObj, customer_email: user.email };
     }
 
     console.log(sessionObj);
 
     const session = await getStripeClient(flavour).checkout.sessions.create(sessionObj);
 
-    await getManagementClient().updateUser({id: req.user.sub}, {app_metadata: {stripe_session_id: session.id}});
+    await getManagementClient().updateUser({ id: req.user.sub }, { app_metadata: { stripe_session_id: session.id } });
 
     res.json({ id: session.id });
 });
