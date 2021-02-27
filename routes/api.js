@@ -818,12 +818,14 @@ router.patch('/updateUserHousecard/:userId', checkJwt, checkUserIsAdmin, async f
 });
 
 
-router.get('/subscription',  checkJwt, async (req, res) => {
+router.get('/subscriptions',  checkJwt, async (req, res) => {
 
     const user = await getManagementClient().getUser({id: req.user.sub});
-    console.log(user);
-    res.json({});
 
+    const membfeeResponse = await getStripeClient("membfee").subscriptions.list({customer: user.app_metadata.stripe_customer_membfee});
+    const housecardResponse = await getStripeClient("housecard").subscriptions.list({customer: user.app_metadata.stripe_customer_housecard});
+
+    res.json({membfeeSubs: membfeeResponse.data, housecardSubs: housecardResponse.data});
 });
 
 router.get('/prices',  checkJwt, async (req, res) => {

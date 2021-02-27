@@ -6,6 +6,7 @@ import axios from "axios";
 import Row from "reactstrap/lib/Row";
 import Col from "reactstrap/lib/Col";
 import AppContent from "../components/common/AppContent";
+import StripeSubscriptionComponent from "../components/Subscription/StripeSubscriptionComponent";
 
 
 const SubscriptionPage = () => {
@@ -15,6 +16,20 @@ const SubscriptionPage = () => {
     membfee: { prices: [], products: [] },
     housecard: { prices: [], products: [] }
   });
+
+  const [subscriptions, setSubscriptions] = useState({ membfeeSubs: [], housecardSubs: [] });
+
+  const fetchSubscriptions = async () => {
+    const accessToken = await getAccessTokenSilently();
+
+    const response = await axios.get("/api/subscriptions", {
+      headers: {
+        Authorization: `Bearer ${accessToken}`
+      }
+    });
+
+    setSubscriptions(response.data);
+  };
 
   const fetchPrices = async () => {
     const accessToken = await getAccessTokenSilently();
@@ -39,16 +54,17 @@ const SubscriptionPage = () => {
     setPps(newPps);
   };
 
-  const getPrice = (id, flavour) => pps[flavour].prices.filter((price) => (price.product === id))[0];
+
+  // const getPrice = (id, flavour) => pps[flavour].prices.filter((price) => (price.product === id))[0];
   const getProduct = (id, flavour) => pps[flavour].products.filter((product) => (product.id === id))[0];
 
   useEffect(() => {
+    fetchSubscriptions();
     fetchPrices();
+  // eslint-disable-next-line
   }, []);
 
-  useEffect(() => {
-    console.log(pps);
-  }, [pps]);
+
 
   const purchaseProduct = async (priceId, flavour) => {
     // Get Stripe.js instance
@@ -108,6 +124,15 @@ const SubscriptionPage = () => {
     <AppContent>
       <h1>Subscription</h1>
       <p>Here the user may manage the membership subscriptions for membership fee and house access fee.</p>
+
+      <Row>
+        {subscriptions.membfeeSubs.map((s) => (<StripeSubscriptionComponent subscription={s} />))}
+      </Row>
+
+      <Row>
+        {subscriptions.housecardSubs.map((s) => (<StripeSubscriptionComponent subscription={s} />))}
+      </Row>
+
 
       <Row>
         <button type="button" onClick={checkStatus} id="status" className="btn btn-primary">Status</button>
