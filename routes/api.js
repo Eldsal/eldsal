@@ -107,6 +107,39 @@ const stringCompare = (a, b) => {
     return 0;
 };
 
+// Get a date string in the format "YYYY-MM-DD"
+const getDateString = (date) => {
+    if (date) {
+        return new Intl.DateTimeFormat('sv-SE').format(date);
+    }
+    else {
+        return "";
+    }
+}
+
+// Get a "normalized" amount, i.e. the amount per year or per month, based on a the amount payed for a number of years or months
+const getNormalizedAmount = (normalizedInterval, amount, interval, intervalCount) => {
+    if (amount === 0) {
+        return 0;
+    }
+    else if (amount > 0 && intervalCount > 0) {
+
+        if (interval == "year" && normalizedInterval == "month") {
+            normalizedAmount = amount / 12 / intervalCount;
+        }
+        else if (interval == "month" && normalizedInterval == "year") {
+            normalizedAmount = amount * 12 / intervalCount;
+        }
+        else {
+            normalizedAmount = amount / intervalCount;
+        }
+        return Math.round(normalizedAmount * 100) / 100; // Round to two decimals
+    }
+    else {
+        return null;
+    }
+}
+
 /**
  * Given an Auth0 user, make a JSON object to pass to client
  * @param {any} user
@@ -155,8 +188,8 @@ const getUserClientObject = (user, includePayments = true) => {
 
     if (includePayments) {
         obj.payments = {
-            membership: getUserAppMetaDataFee(user, "membfee_payed_until", "membfee_method", "membfee_amount", "year"),
-            housecard: getUserAppMetaDataFee(user, "housecard_payed_until", "housecard_method", "housecard_amount", "month")
+            membership: getUserAppMetaDataFee(user, "membfee_payment", "year"),
+            housecard: getUserAppMetaDataFee(user, "housecard_payment", "month")
         };
     }
 
@@ -168,11 +201,16 @@ const getUserClientObject = (user, includePayments = true) => {
  * The result object has this structure:
  * {
  *  payed: boolean,
- *  payedUntil: Date,
+ *  periodStart: date,
+ *  periodEnd: date,
+ *  interval: string ("month" or "year"),
+ *  intervalCount: number (number of months or years)
  *  method: string ("manual" or "stripe"),
  *  methodName: string (e.g "Stripe"),
  *  amount: number,
- *  amountPeriod: string ("month" or "year"),
+ *  currency: number,
+ *  normalizedAmount: number,
+ *  normalizedInterval: string ("month" or "year"),
  *  error: boolean,
  *  errorMessage: string
  * }
@@ -182,30 +220,85 @@ const getUserClientObject = (user, includePayments = true) => {
  * @param {string} amountProperty
  * @param {string} amountPeriodProperty
  */
-const getUserAppMetaDataFee = (user, payedUntilProperty, methodProperty, amountProperty, amountPeriod) => {
+const getUserAppMetaDataFee = (user, paymentProperty, normalizedInterval) => {
 
     var hasPayed = false;
-    var payedUntilDate = null;
+    var periodStart = null; // String, no time
+    var periodEnd = null; // String, no time
+    var interval = null; // String, no time
+    var intervalCount = null; // String, no time
     var method = "";
     var methodName = "(none)";
     var amount = null;
+    var normalizedAmount = null;
+    var currency = null;
     var isError = false;
     var errorMessage = null;
 
-    if (user.app_metadata) {
-        var payedUntilString = user.app_metadata[payedUntilProperty];
+    var payment = user.app_metadata && user.app_metadata[paymentProperty] ? user.app_metadata[paymentProperty] : null;
 
-        if (payedUntilString) {
-            var payedUntilDate = new Date(payedUntilString);
+    if (payment) {
+        periodStart = payment["period_start"];
 
-            if (payedUntilDate && !isNaN(payedUntilDate.getTime())) {
+        if (periodStart) {
+
+            interval = payment["interval"];
+            intervalCount = parseInt(payment["interval_count"]);
+            currency = payment["currency"];
+            amount = parseInt(payment["amount"]);
+            method = payment["method"];
+
+            var periodStartDate = new Date(periodStart);
+
+            if (!periodStartDate || isNaN(periodStartDate.getTime())) {
+                hasPayed = false;
+                isError = true;
+                errorMessage = 'The stored period start date has an invalid format';
+            }
+            else if (interval != "year" && interval != "month") {
+                hasPayed = false;
+                isError = true;
+                errorMessage = 'The stored interval has an invalid format';
+            }
+            else if (isNaN(intervalCount) || intervalCount <= 0) {
+                hasPayed = false;
+                isError = true;
+                errorMessage = 'The stored interval count has an invalid format';
+            }
+            else if (isNaN(amount) || amount < 0) {
+                hasPayed = false;
+                isError = true;
+                errorMessage = 'The stored amount has an invalid format';
+            }
+            else if (!currency) {
+                hasPayed = false;
+                isError = true;
+                errorMessage = 'No currency is stored';
+            }
+            else {
 
                 var now = new Date();
                 var today = new Date(now.getUTCFullYear(), now.getMonth(), now.getDate()); // Get current date, without time
 
-                hasPayed = payedUntilDate >= today;
+                var periodEndDate;
+                switch (interval) {
+                    case "year":
+                        periodEndDate = new Date(periodStartDate.setUTCFullYear(periodStartDate.getUTCFullYear() + intervalCount));
+                        break;
+                    case "month":
+                        periodEndDate = new Date(periodStartDate.setMonth(periodStartDate.getMonth() + intervalCount));
+                        break;
+                    default:
+                        // Should not happen
+                        periodEnd = periodStart;
+                        break;
+                }
+                periodEnd = getDateString(periodEndDate);
 
-                method = user.app_metadata[methodProperty];
+                hasPayed = periodEndDate >= today;
+
+                // Normalize amount
+                normalizedAmount = getNormalizedAmount(normalizedInterval, amount, interval, intervalCount);
 
                 if (method) {
                     switch (method) {
@@ -226,32 +319,25 @@ const getUserAppMetaDataFee = (user, payedUntilProperty, methodProperty, amountP
                 else {
                     methodName = "(none)";
                 }
-
-            }
-            else {
-                hasPayed = false;
-                isError = true;
-                errorMessage = 'The stored date for "payed until" has an invalid format';
             }
         }
-
-        var amountString = user.app_metadata[amountProperty];
-
-        if (amountString) {
-            amount = parseInt(amountString);
-            if (isNaN(amount)) {
-                amount = null;
-            }
+        else {
+            periodStart = null;
         }
     }
 
     return {
         payed: hasPayed,
-        payedUntil: payedUntilDate,
+        periodStart: periodStart,
+        periodEnd: periodEnd,
+        interval: interval,
+        intervalCount: intervalCount,
         method: method,
         methodName: methodName,
         amount: amount,
-        amountPeriod: amountPeriod,
+        normalizedAmount: normalizedAmount,
+        normalizedInterval: normalizedInterval,
+        currency: currency ? currency.toUpperCase() : "SEK",
         error: isError,
         errorMessage: errorMessage
     }
@@ -520,9 +606,10 @@ router.get('/admin/export-users', checkJwt, checkUserIsAdmin, async function (re
 
     console.log('admin/export-users');
 
-    const formatDate = (date) => {
-        if (date) {
-            return new Intl.DateTimeFormat('sv-SE').format(date);
+    const formatDate = (dateString) => {
+        if (dateString) {
+            var _date = new Date(dateString);
+            return new Intl.DateTimeFormat('sv-SE').format(_date);
         }
         else {
             return null;
@@ -540,6 +627,15 @@ router.get('/admin/export-users', checkJwt, checkUserIsAdmin, async function (re
 
 
         return intValue;
+    }
+
+    const formatInterval = (interval, intervalCount) => {
+        if (intervalCount > 0) {
+            return intervalCount.toString() + " " + interval + (intervalCount === 1 ? "" : "s");
+        }
+        else {
+            return "";
+        }
     }
 
     getManagementClient()
@@ -589,32 +685,64 @@ router.get('/admin/export-users', checkJwt, checkUserIsAdmin, async function (re
                     value: 'country'
                 },
                 {
-                    label: 'Membership payed',
+                    label: 'MS payed',
                     value: (row) => row.payments.membership.payed ? "Yes" : "No"
                 },
                 {
-                    label: 'Membership payed until',
-                    value: (row) => formatDate(row.payments.membership.payedUntil)
+                    label: 'MS period start',
+                    value: (row) => formatDate(row.payments.membership.periodStart)
                 },
                 {
-                    label: 'Membership payed amount (SEK/year)',
+                    label: 'MS period end',
+                    value: (row) => formatDate(row.payments.membership.periodEnd)
+                },
+                {
+                    label: 'MS interval',
+                    value: (row) => formatInterval(row.payments.membership.interval, row.payments.membership.intervalCount)
+                },
+                {
+                    label: 'MS amount',
                     value: (row) => formatInt(row.payments.membership.amount)
                 },
                 {
-                    label: 'Membership payment method',
+                    label: 'MS amount / year',
+                    value: (row) => getNormalizedAmount("year", row.payments.membership.amount, row.payments.membership.interval, row.payments.membership.intervalCount)
+                },
+                {
+                    label: 'MS currency',
+                    value: 'payments.membership.currency'
+                },
+                {
+                    label: 'MS payment method',
                     value: 'payments.membership.methodName'
                 },
                 {
-                    label: 'House card payed',
+                    label: 'HC payed',
                     value: (row) => row.payments.housecard.payed ? "Yes" : "No"
                 },
                 {
-                    label: 'House card payed until',
-                    value: (row) => formatDate(row.payments.housecard.payedUntil)
+                    label: 'HC period start',
+                    value: (row) => formatDate(row.payments.housecard.periodStart)
                 },
                 {
-                    label: 'House card payed amount (SEK/month)',
+                    label: 'HC period end',
+                    value: (row) => formatDate(row.payments.housecard.periodEnd)
+                },
+                {
+                    label: 'HC interval',
+                    value: (row) => formatInterval(row.payments.housecard.interval, row.payments.housecard.intervalCount)
+                },
+                {
+                    label: 'HC amount',
                     value: (row) => formatInt(row.payments.housecard.amount)
+                },
+                {
+                    label: 'HC amount / month',
+                    value: (row) => getNormalizedAmount("month", row.payments.housecard.amount, row.payments.housecard.interval, row.payments.housecard.intervalCount)
+                },
+                {
+                    label: 'HC currency',
+                    value: 'payments.housecard.currency'
                 },
                 {
                     label: 'House card payment method',
@@ -640,7 +768,87 @@ router.get('/admin/export-users', checkJwt, checkUserIsAdmin, async function (re
         });
 });
 
+const getPaymentPost = (req) => {
+    const { payed, method, periodStart, interval, intervalCount, amount, currency } = req.body;
 
+    var argMethod, argPeriodStart, argInterval, argIntervalCount, argAmount, argCurrency;
+
+    switch (payed) {
+        case true:
+
+            // Method
+            if (!method)
+                throw "Payment method is required";
+
+            switch (method) {
+                case "stripe":
+                case "manual":
+                    argMethod = method;
+                    break;
+
+                default:
+                    throw `Invalid payment method ${method}`;
+            }
+
+            // Period start
+            if (!periodStart)
+                throw "Period start date is required";
+
+            if (!/^\d{4}-\d{2}-\d{2}$/.test(periodStart))
+                throw "Period start date must be in format YYYY-MM-DD";
+
+            var periodStartDate = new Date(periodStart);
+
+            argPeriodStart = periodStart;
+
+            // Interval
+            switch (interval) {
+                case "year":
+                case "month":
+                    argInterval = interval;
+                    break;
+
+                default:
+                    throw `Invalid interval ${interval}`;
+            }
+
+            // Interval count
+            argIntervalCount = parseInt(intervalCount);
+            if (isNaN(argIntervalCount) || argIntervalCount <= 0)
+                throw "Invalid interval count";
+
+            // Amount
+            argAmount = parseInt(amount);
+            if (isNaN(argAmount) || argAmount < 0)
+                throw "Invalid amount";
+
+            // Currency
+            if (!currency)
+                throw "No currency specified";
+
+            argCurrency = currency;
+
+            break;
+
+        case false:
+            argPayedUntil = null;
+            argMethod = null;
+            argAmount = null;
+            break;
+
+        default:
+            throw "Invalid value for \"payed\"";
+    }
+
+    return {
+        method: argMethod,
+        period_start: argPeriodStart,
+        interval: argInterval,
+        interval_count: argIntervalCount,
+        amount: argAmount,
+        currency: argCurrency
+    };
+}
 
 /* Update membership fee payment for user
  * Argument object:
@@ -656,64 +864,18 @@ router.patch('/admin/update-user-membership/:userId', checkJwt, checkUserIsAdmin
     const userId = req.params.userId;
     console.log(userId);
 
-    const { payed, method, payedUntil, amount } = req.body;
+    var payment;
 
-    var argPayedUntil, argMethod, argAmount;
-
-    switch (payed) {
-        case true:
-
-            // Method
-            if (!method)
-                return badRequest(res, "Payment method is required");
-
-            switch (method) {
-                case "stripe":
-                case "manual":
-                    argMethod = method;
-                    break;
-
-                default:
-                    return badRequest(res, `Invalid payment method ${method}`);
-            }
-
-            // Payed until
-            if (!payedUntil)
-                return badRequest(res, "Payed until date is required");
-
-            if (!/^\d{4}-\d{2}-\d{2}$/.test(payedUntil))
-                return badRequest(res, "Payed until date must be in format YYYY-MM-DD");
-
-            var payedUntilDate = new Date(payedUntil);
-
-            if (payedUntilDate <= new Date())
-                return badRequest(res, "Payed until must be a future date");
-
-            argPayedUntil = payedUntil;
-
-            // Amount
-            argAmount = parseInt(amount);
-            if (isNaN(argAmount) || argAmount < 0)
-                return badRequest(res, "Invalid amount");
-
-            break;
-
-        case false:
-            argPayedUntil = null;
-            argMethod = null;
-            argAmount = null;
-            break;
-
-        default:
-            return badRequest(res, "Invalid value for \"payed\"");
+    try {
+        payment = getPaymentPost(req);
+    } catch (e) {
+        console.log(e);
+        return badRequest(res, e);
     }
-
 
     const userArgument = {
         app_metadata: {
-            membfee_payed_until: argPayedUntil,
-            membfee_method: argMethod,
-            membfee_amount: argAmount
+            membfee_payment: payment
         }
     }
 
@@ -745,64 +907,17 @@ router.patch('/admin/update-user-housecard/:userId', checkJwt, checkUserIsAdmin,
     const userId = req.params.userId;
     console.log(userId);
 
-    const { payed, method, payedUntil, amount } = req.body;
+    var payment;
 
-    var argPayedUntil, argMethod, argAmount
-
-    switch (payed) {
-        case true:
-
-            // Method
-            if (!method)
-                return badRequest(res, "Payment method is required");
-
-            switch (method) {
-                case "stripe":
-                case "manual":
-                    argMethod = method;
-                    break;
-
-                default:
-                    return badRequest(res, `Invalid payment method ${method}`);
-            }
-
-            // Payed until
-            if (!payedUntil)
-                return badRequest(res, "Payed until date is required");
-
-            if (!/^\d{4}-\d{2}-\d{2}$/.test(payedUntil))
-                return badRequest(res, "Payed until date must be in format YYYY-MM-DD");
-
-            var payedUntilDate = new Date(payedUntil);
-
-            if (payedUntilDate <= new Date())
-                return badRequest(res, "Payed until must be a future date");
-
-            argPayedUntil = payedUntil;
-
-            // Amount
-            argAmount = parseInt(amount);
-            if (isNaN(argAmount) || argAmount < 0)
-                return badRequest(res, "Invalid amount");
-
-            break;
-
-        case false:
-            argPayedUntil = null;
-            argMethod = null;
-            argAmount = null;
-            break;
-
-        default:
-            return badRequest(res, "Invalid value for \"payed\"");
+    try {
+        payment = getPaymentPost(req);
+    } catch (e) {
+        return badRequest(res, e);
     }
-
 
     const userArgument = {
         app_metadata: {
-            housecard_payed_until: argPayedUntil,
-            housecard_method: argMethod,
-            housecard_amount: argAmount
+            housecard_payment: payment
         }
     }
 
@@ -1000,7 +1115,7 @@ router.get('/user-subscriptions', checkJwt, async (req, res) => {
     await readSubscriptions(
         stripe_housecard,
         userInfoByHousecardCustomer,
-        (user) => {},
+        (user) => { },
         (user, customer) => user.housecard_customer = customer,
         (user, subscription) => user.housecard_subscriptions.push(subscription));
 

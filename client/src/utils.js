@@ -6,7 +6,7 @@
  */
 function parseDate(date) {
 
-    if (date === null)
+    if (date === null || date === undefined)
         return null;
 
     var _date;
@@ -21,6 +21,7 @@ function parseDate(date) {
             break;
 
         default:
+            console.log(date);
             throw Error("Passed date is of invalid type: " + typeof (date));
     }
 
