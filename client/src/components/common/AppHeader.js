@@ -22,7 +22,7 @@ const AppHeader = (props) => {
     const toggle = () => setIsOpen(!isOpen);
 
     const { logout } = useAuth0();
-    const { userInfo, isAuthenticated, isAdmin } = useUser();
+    const { userInfo, isAuthenticated, isAdmin, isDeveloper } = useUser();
 
     if (!isAuthenticated || userInfo == null) {
         return (
@@ -37,8 +37,23 @@ const AppHeader = (props) => {
         );
     }
 
+    const displayEnvironment = () => {
+        var env = process.env.NODE_ENV;
+        if (!env)
+            env = "none";
+
+        switch (env) {
+            case "production":
+                return null;
+
+            default:
+                return <div className={`App-environment environment-${env}`}>{env.toUpperCase()}</div>;
+        }
+    }
+
     return (
         <header className="App-header">
+            <div>{displayEnvironment()}</div>
             <Navbar color="light" light expand="md">
                 <NavbarBrand href="/start">
                     <img src="/eldsal.png" className="App-logo" alt="Eldsäl" />
@@ -55,6 +70,9 @@ const AppHeader = (props) => {
                         </NavItem>
                         <NavItem hidden={!isAdmin}>
                             <NavLink href="/admin">Admin</NavLink>
+                        </NavItem>
+                        <NavItem hidden={!isDeveloper}>
+                            <NavLink href="/dev">Dev</NavLink>
                         </NavItem>
                         <NavItem hidden={!isOpen}>
                             <NavLink href="/profile">Profile</NavLink>

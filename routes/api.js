@@ -185,6 +185,7 @@ const getUserClientObject = (user, includePayments = true) => {
     }
 
     obj.admin = userHasRole(user, "admin");
+    obj.developer = userHasRole(user, "dev");
 
     if (includePayments) {
         obj.payments = {
@@ -393,6 +394,29 @@ const checkUserIsAdmin = async (req, res, next) => {
 
             if (!userHasRole(user, "admin")) {
                 returnError(res, "Admin role required", 403);
+            }
+            else {
+                next();
+            }
+
+        })
+        .catch(function (err) {
+            returnError('Error getting user: ' + err);
+        });
+}
+
+
+// Middleware to check if a user has the "dev" role
+const checkUserIsDeveloper = async (req, res, next) => {
+
+    const params = { id: req.user.sub };
+
+    getManagementClient()
+        .getUser(params)
+        .then(function (user) {
+
+            if (!userHasRole(user, "dev")) {
+                returnError(res, "Developer role required", 403);
             }
             else {
                 next();
@@ -1007,14 +1031,89 @@ class UserSubscriptionResultObject {
 }
 
 class StripeSubscriptionInfo {
-    // Pass a Stripe subscription object, and a list of Stripe products
+    // Pass a Stripe subscription object, and a list of Stripe products and prices
     constructor(sub, products) {
         this.subscription_id = sub.id;
         this.current_period_start = sub.current_period_start;
         this.current_period_end = sub.current_period_end;
+        this.read_error = false;
+        this.read_error_message = null;
+
+        this.quantity = null;
+        this.amount = null;
+        this.unit_amount = null;
+        this.currency = null;
+        this.price_id = null;
+        this.price_name = null;
+        this.product_id = null;
+        this.product_name = null;
+        this.interval = null;
+        this.interval_count = null;
+
+        if (sub.items && sub.items.data && sub.items.data.length > 0) {
+            if (sub.items.data.length == 1) {
+                // Containing one subscription item (expected)
+                var item = sub.items.data[0];
+
+                this.quantity = item.quantity;
+
+                const price = item.price;
+
+                if (price) {
+
+                    this.price_id = price.id;
+                    this.price_name = price.nickname;
+
+                    this.currency = price.currency;
+                    this.unit_amount = price.unit_amount / 100; // Amount is in cents (ören)
+
+                    this.amount = this.unit_amount * this.quantity;
+
+                    this.product_id = price.product;
+
+                    if (this.product_id) {
+
+                        var productSearch = products.filter(x => x.id == this.product_id);
+
+                        if (productSearch && productSearch.length == 1) {
+                            var product = productSearch[0];
+                            this.product_name = product.name;
+                        }
+                        else {
+                            this.product_name = this.product_id;
+                        }
+
+                        this.product_name = product.name;
+                    }
+
+                    if (price.recurring) {
+                        this.interval = price.recurring.interval;
+                        this.interval_count = price.recurring.interval_count;
+
+                    }
+                }
+                else {
+                    this.read_error = true;
+                    this.read_error_message = "Subscription items contains no price";
+                }
+            }
+            else {
+                // Containing more than one subscription items
+                this.read_error = true;
+                this.read_error_message = "The subscription contains multiple items";
+            }
+        }
+        else {
+            // No items
+            this.read_error = true;
+            this.read_error_message = "No subscription items";
+        }
+
+        return;
 
         if (sub.plan) {
             this.price_id = sub.plan.id;
+
             this.amount = sub.plan.amount / 100; // "amount" is in "cents", i.e. "ören"
             this.currency = sub.plan.currency;
             this.interval = sub.plan.interval;
@@ -1028,7 +1127,20 @@ class StripeSubscriptionInfo {
                 this.product_name = product.name;
             }
             else {
-                this.product_name = sub.plan.product_id;
+                this.product_name = this.product_id;
+            }
+
+            var priceSearch = prices.filter(x => x.id == this.price_id);
+
+            //console.log(prices)
+            //console.log(this.price_id)
+
+            if (priceSearch && priceSearch.length == 1) {
+                var price = priceSearch[0];
+                this.price_name = price.nickname;
+            }
+            else {
+                this.price_name = null;
             }
         }
         else {
@@ -1039,6 +1151,7 @@ class StripeSubscriptionInfo {
             this.interval_count = null;
             this.product_id = null;
             this.product_name = null;
+            this.price_name = null;
         }
     }
 }
@@ -1085,10 +1198,39 @@ router.get('/admin/get-subscriptions', checkJwt, checkUserIsAdmin, async (req, r
 
     let result = userInfo.map(x => new UserSubscriptionResultObject(x));
 
-    res.json(result);
+    res.json(result.sort((a, b) => stringCompare(a.user_name, b.user_name)));
 
 });
 
+/** Cancel a Stripe subscriptions for membership */
+router.patch('/admin/cancel-subscription-membfee/:subscriptionId', checkJwt, checkUserIsAdmin, async (req, res) => {
+
+    console.log('admin/cancel-subscription-membfee');
+
+    const subscriptionId = req.params.subscriptionId;
+    console.log(subscriptionId);
+
+    cancelStripeSubscription(stripe_membfee, subscriptionId)
+        .then(
+            success => res.json(),
+            error => returnError(res, error),
+        );
+});
+
+/** Cancel a Stripe subscriptions for housecard */
+router.patch('/admin/cancel-subscription-housecard/:subscriptionId', checkJwt, checkUserIsAdmin, async (req, res) => {
+
+    console.log('admin/cancel-subscription-housecard');
+
+    const subscriptionId = req.params.subscriptionId;
+    console.log(subscriptionId);
+
+    cancelStripeSubscription(stripe_housecard, subscriptionId)
+        .then(
+            success => res.json(),
+            error => returnError(res, error),
+        );
+});
 
 router.get('/user-subscriptions', checkJwt, async (req, res) => {
 
@@ -1188,7 +1330,7 @@ async function readSubscriptions(stripe, userInfoByStripeCustomer, addDummyUserF
         }
 
         if (createDummyUser) {
-            const dummyUser = new UserSubscriptionInfo(null, null);
+            const dummyUser = new UserSubscriptionInfo(null, customer.email);
             dummyUser.dummy_user_id = nextDummyUserId--;
             addCustomerFunc(dummyUser, customer);
             customer._user = dummyUser;
@@ -1197,6 +1339,10 @@ async function readSubscriptions(stripe, userInfoByStripeCustomer, addDummyUserF
 
         addSubscriptionFunc(customer._user, new StripeSubscriptionInfo(s, products));
     }
+}
+
+async function cancelStripeSubscription(stripe, subscriptionId) {
+    return await stripe.subscriptions.del(subscriptionId);
 }
 
 router.get('/subscriptions', checkJwt, async (req, res) => {

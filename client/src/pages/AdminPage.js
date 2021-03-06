@@ -54,7 +54,7 @@ const AdminPage = () => {
                             className={classnames({ active: activeTab === 'subscriptions' })}
                             onClick={() => { toggleTab('subscriptions'); }}
                         >
-                            Subscriptions
+                            Stripe subscriptions
                         </NavLink>
                     </NavItem>
                 </Nav>

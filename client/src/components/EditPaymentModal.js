@@ -24,6 +24,14 @@ export const EditPaymentModal = ({ payment, apiUrl, onSave, hideModal }) => {
     const [saveError, setSaveError] = useState(false);
     const [saveErrorMessage, setSaveErrorMessage] = useState(null);
 
+    const _callback = (button) => {
+        if (button == "save") {
+            _onSave();
+            // Return false, to don't automatically hide the dialog
+            return false;
+        }
+    }
+
     const _onSave = async () => {
 
         var args = {
@@ -60,7 +68,6 @@ export const EditPaymentModal = ({ payment, apiUrl, onSave, hideModal }) => {
                 setSaveErrorMessage(apiGetErrorMessage(err));
                 setSaveError(true);
             });
-
     }
 
     const undefIfNull = (value) => {
@@ -92,7 +99,7 @@ export const EditPaymentModal = ({ payment, apiUrl, onSave, hideModal }) => {
 
 
     return (
-        <CommonModal hideModal={hideModal} buttons="save,cancel" onSave={_onSave}>
+        <CommonModal hideModal={hideModal} buttons="save,cancel" callback={_callback}>
             <h3>Edit payment</h3>
             {payment ?
                 <>

@@ -51,6 +51,10 @@ export const AdminSubscriptionList = ({ x }) => {
     }, []);
 
     function displaySubscription(subscription, includeProductName = true) {
+
+        if (subscription.read_error)
+            return <span className="text-danger">{subscription.read_error_message}</span>;
+
         var interval = subscription.interval_count == 1 ? subscription.interval : subscription.interval_count + " " + subscription.interval + "s";
 
         var result = <span>{subscription.amount} {subscription.currency}/{interval}{includeProductName ? <small> ({subscription.product_name})</small> : null}</span>;
@@ -79,7 +83,7 @@ export const AdminSubscriptionList = ({ x }) => {
     return !dataLoaded
         ? (<span><FontAwesomeIcon icon="spinner" spin /> Loading...</span>)
         : (<>
-            <h3>Subscriptions</h3>
+            <h3>Stripe subscriptions</h3>
             <Table>
                 <thead>
                     <tr>
