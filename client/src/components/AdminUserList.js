@@ -38,8 +38,8 @@ export const AdminUserList = ({ x }) => {
     const formatFee = (paymentProperty) => {
 
         var hasPayed = paymentProperty.payed;
-        var payedUntilDate = paymentProperty.payedUntil ? new Date(paymentProperty.payedUntil) : null;
-        var methodName = paymentProperty.methodName;
+        var periodStartDate = paymentProperty.periodStart ? new Date(paymentProperty.periodStart) : null;
+        var periodEndDate = paymentProperty.periodEnd ? new Date(paymentProperty.periodEnd) : null;
         var isError = paymentProperty.error;
         var errorMessage = paymentProperty.errorMessage;
 
@@ -48,17 +48,17 @@ export const AdminUserList = ({ x }) => {
         }
         else {
             if (hasPayed) {
-                return <span><span className="text-success">Payed</span><small> (until {formatDate(payedUntilDate)})</small></span>;
+                return <span><span className="text-success">Payed</span><small> (until {formatDate(periodEndDate)})</small></span>;
             }
             else {
-                return <span><span className="text-danger">Not payed</span><small>{payedUntilDate ? " (expired " + formatDate(payedUntilDate) + ")" : ""}</small></span>;
+                return <span><span className="text-danger">Not payed</span><small>{periodEndDate ? " (expired " + formatDate(periodEndDate) + ")" : ""}</small></span>;
             }
         }
     }
 
     const exportUsers = () =>
     {
-        apiGet(`exportUsers`)
+        apiGet(`admin/export-users`)
             .then((response) => {
                 const fileName = "Eldsäl Member List " + formatDate(new Date()) + ".csv";
                 const url = window.URL.createObjectURL(new Blob([response.data]));
@@ -70,13 +70,18 @@ export const AdminUserList = ({ x }) => {
             });
     }
 
-    if (!usersLoaded) {
-
-        apiGet(`getUsers`)
+    useEffect(() => {
+        apiGet(`admin/get-users`)
             .then(
                 success => {
-                    setUsers(success.data);
-                    setUsersLoaded(true);
+                    const data = success.data;
+                    if (typeof (data) === "object" && typeof (data.length) === "number") {
+                        setUsers(success.data);
+                        setUsersLoaded(true);
+                    }
+                    else {
+                        console.log("Invalid response");
+                    }
                 },
                 fail => {
                     console.log("Fail: " + fail);
@@ -84,12 +89,13 @@ export const AdminUserList = ({ x }) => {
             .catch(reason => {
                 console.log("Fail: " + reason);
             });
-    }
+    }, []);
+
 
     return !usersLoaded
         ? (<span><FontAwesomeIcon icon="spinner" spin /> Loading...</span>)
         : (<>
-            <h3>Users</h3>
+            <h3>Members</h3>
             <Table>
                 <thead>
                     <tr>
@@ -119,7 +125,7 @@ export const AdminUserList = ({ x }) => {
                 </tbody>
             </Table>
             <div className="mt-4">
-                <button className="btn btn-outline-secondary" onClick={()=>exportUsers() }>Download user list</button>
+                <button className="btn btn-outline-secondary" onClick={()=>exportUsers() }>Download member list</button>
             </div>
         </>
         );

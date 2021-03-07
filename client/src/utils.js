@@ -6,6 +6,9 @@
  */
 function parseDate(date) {
 
+    if (date === null || date === undefined)
+        return null;
+
     var _date;
 
     switch (typeof (date)) {
@@ -18,6 +21,7 @@ function parseDate(date) {
             break;
 
         default:
+            console.log(date);
             throw Error("Passed date is of invalid type: " + typeof (date));
     }
 
@@ -32,7 +36,7 @@ export function formatDate(date) {
 
     var _date = parseDate(date);
 
-    if (date === null)
+    if (_date === null)
         return "";
 
     return new Intl.DateTimeFormat('sv-SE').format(_date);
@@ -48,6 +52,22 @@ export function getDateFormValue(date) {
 
     if (date === null)
         return "";
+
+    return new Intl.DateTimeFormat('sv-SE').format(_date);
+}
+
+/**
+ * Format a timestamp (UNIX epoch) for output, using Swedish notation YYYY-MM-DD 
+ * @param {date|string} date
+ */
+export function formatUtcTimestamp(timestamp) {
+    if (timestamp === null)
+        return "";
+
+    var _date = new Date(timestamp * 1000);
+
+    if (isNaN(_date))
+        return "(Invalid date)";
 
     return new Intl.DateTimeFormat('sv-SE').format(_date);
 }

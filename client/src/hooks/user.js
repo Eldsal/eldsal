@@ -10,6 +10,7 @@ export const useUser = () => {
     const [isUserError, setUserIsError] = useState(false)
     const [userInfo, setUserInfo] = useState(null)
     const [isAdmin, setIsAdmin] = useState(false)
+    const [isDeveloper, setIsDeveloper] = useState(false)
 
     useEffect(() => {
 
@@ -27,6 +28,7 @@ export const useUser = () => {
                     var user = response.data;
                     setUserInfo(user);
                     setIsAdmin(user.admin);
+                    setIsDeveloper(user.developer);
                     setUserIsLoading(false);
                 },
                 (fail) => {
@@ -36,7 +38,7 @@ export const useUser = () => {
             );
     }
 
-    return { isUserLoading, isUserError, user, isAuthenticated, userInfo, isAdmin };
+    return { isUserLoading, isUserError, user, isAuthenticated, userInfo, isAdmin, isDeveloper };
 };
 
 export default useUser;
