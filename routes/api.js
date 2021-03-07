@@ -1,7 +1,5 @@
 const express = require("express");
 const router = express.Router();
-const stripe_membfee = require('stripe')(process.env.REACT_APP_STRIPE_PRIVATE_KEY_ELDSAL_ORG);
-const stripe_housecard = require('stripe')(process.env.REACT_APP_STRIPE_PRIVATE_KEY_ELDSAL_AB);
 const utils = require("./utils");
 const response = require("./response");
 const middleware = require("./middleware");
@@ -11,9 +9,8 @@ const stripe = require("./stripe");
 module.exports = router;
 
 const { returnError, badRequest, internalServerError } = response;
-const { stringCompare, getDateString, getNormalizedAmount } = utils;
 const { checkJwt, checkLoggedInUser, checkUserIsAdmin, checkUserIsDeveloper } = middleware;
-const { getManagementClient, userHasRole, isUserInCurrentConnection, getUserClientObject } = auth0;
+const { getManagementClient } = auth0;
 
 
 /*
@@ -43,13 +40,8 @@ router.get('/getLoggedInUser', checkJwt, async function (req, res) {
 
     const userId = req.user.sub;
 
-    const params = { id: userId };
-
-    getManagementClient()
-        .getUser(params)
-        .then(function (user) {
-            res.json(getUserClientObject(user));
-        })
+    auth0.getUser(userId, true)
+        .then(data => res.json(data))
         .catch(function (err) {
             // Handle error.
             console.error(err);
@@ -125,12 +117,8 @@ router.get('/admin/get-users', checkJwt, checkUserIsAdmin, async function (req, 
 
     console.log('admin/get-users');
 
-    auth0.getManagementClient()
-        .getUsers()
-        .then(function (users) {
-            // Filter out only users from the connection specified in the env file
-            res.json(users.filter(user => isUserInCurrentConnection(user)).map(user => getUserClientObject(user)).sort((a, b) => stringCompare(a.name, b.name)));
-        })
+    auth0.getUsers()
+        .then(data => res.json(data))
         .catch(function (err) {
             // Handle error.
             console.error(err);
@@ -149,10 +137,27 @@ router.get('/admin/export-users', checkJwt, checkUserIsAdmin, async function (re
         .then(fileContent => {
             res.status(200).contentType("text/csv").attachment("EldsalMemberList.csv").send(fileContent);
         },
-        error => {
-            console.error(error);
-            returnError(res, error);
+            error => {
+                console.error(error);
+                returnError(res, error);
+            });
+});
+
+/* Get users
+ **/
+router.patch('/admin/sync-users', checkJwt, checkUserIsAdmin, async function (req, res) {
+
+    console.log('admin/sync-users');
+
+    stripe.syncUsers()
+        .then(success => auth0.getUsers())
+        .then(data => res.json(data))
+        .catch(function (err) {
+            // Handle error.
+            console.error(err);
+            returnError(res, err);
         });
+
 });
 
 /* Update membership fee payment for user
@@ -169,7 +174,7 @@ router.patch('/admin/update-user-membership/:userId', checkJwt, checkUserIsAdmin
     const userId = req.params.userId;
     console.log(userId);
 
-    auth0.adminUpdateUserFee(utils.fee_flavour_membership, userId, req)
+    auth0.adminUpdateUserFeeFromRequest(utils.fee_flavour_membership, userId, req)
         .then(userClientObject => {
             res.json(userClientObject);
         })
@@ -194,7 +199,7 @@ router.patch('/admin/update-user-housecard/:userId', checkJwt, checkUserIsAdmin,
     const userId = req.params.userId;
     console.log(userId);
 
-    auth0.adminUpdateUserFee(utils.fee_flavour_housecard, userId, req)
+    auth0.adminUpdateUserFeeFromRequest(utils.fee_flavour_housecard, userId, req)
         .then(userClientObject => {
             res.json(userClientObject);
         })
@@ -211,7 +216,7 @@ router.patch('/admin/update-user-housecard/:userId', checkJwt, checkUserIsAdmin,
 router.get('/admin/get-subscriptions', checkJwt, checkUserIsAdmin, async (req, res) => {
 
     console.log('admin/get-subscriptions');
-
+    const x = await 
     stripe.getStripeSubscriptions()
         .then(users => res.json(users))
         .catch(function (err) {
@@ -221,7 +226,7 @@ router.get('/admin/get-subscriptions', checkJwt, checkUserIsAdmin, async (req, r
         });
 });
 
-/** Cancel a Stripe subscription for membership */
+/** Cancel a Stripe subscription for membership (for admins) */
 router.patch('/admin/cancel-subscription-membfee/:subscriptionId', checkJwt, checkUserIsAdmin, async (req, res) => {
 
     console.log('admin/cancel-subscription-membfee');
@@ -236,15 +241,34 @@ router.patch('/admin/cancel-subscription-membfee/:subscriptionId', checkJwt, che
         );
 });
 
-/** Cancel a Stripe subscription for housecard */
-router.patch('/admin/cancel-subscription-housecard/:subscriptionId', checkJwt, checkUserIsAdmin, async (req, res) => {
+/** Cancel a Stripe subscription for housecard (for admins) */
+router.patch('/cancel-subscription/:userId/:flavour/:subscriptionId', checkJwt, checkLoggedInUser, async (req, res) => {
 
-    console.log('admin/cancel-subscription-housecard');
+    console.log('cancel-subscription');
+
+    const userId = req.params.userId;
+    const flavour = req.params.flavour;
+    const subscriptionId = req.params.subscriptionId;
+    console.log(userId);
+    console.log(flavour);
+    console.log(subscriptionId);
+
+    stripe.cancelStripeSubscriptionForUser(userId, flavour, subscriptionId)
+        .then(
+            success => res.json(),
+            error => returnError(res, error),
+        );
+});
+
+/** Cancel a Stripe subscription for membership */
+router.patch('/admin/cancel-subscription-membfee/:subscriptionId', checkJwt, checkUserIsAdmin, async (req, res) => {
+
+    console.log('admin/cancel-subscription-membfee');
 
     const subscriptionId = req.params.subscriptionId;
     console.log(subscriptionId);
 
-    stripe.cancelStripeSubscription(utils.fee_flavour_housecard, subscriptionId)
+    stripe.cancelStripeSubscription(utils.fee_flavour_membership, subscriptionId)
         .then(
             success => res.json(),
             error => returnError(res, error),
@@ -263,20 +287,6 @@ router.get('/user-subscriptions', checkJwt, async (req, res) => {
         .then(data => {
             res.json(data);
         })
-});
-
-
-
-router.get('/subscriptions', checkJwt, async (req, res) => {
-    /*
-    const user = await getManagementClient().getUser({ id: req.user.sub });
-
-    const membfeeResponse = await getStripeClient("membfee").subscriptions.list({ customer: user.app_metadata.stripe_customer_membfee });
-    const housecardResponse = await getStripeClient("housecard").subscriptions.list({ customer: user.app_metadata.stripe_customer_housecard });
-
-    res.json({ membfeeSubs: membfeeResponse.data, housecardSubs: housecardResponse.data });
-    */
-    res.json({ membfeeSubs: [], housecardSubs: [] });
 });
 
 router.get('/prices', checkJwt, async (req, res) => {

@@ -58,7 +58,7 @@ export const UserSubscriptionsModal = ({ user, hideModal }) => {
     }, [user]);
 
     function displaySubscriptionList(feeType, subscriptionList) {
-        return <Table>
+        return <table className="table">
             <thead>
                 <tr>
                     <th>Product</th>
@@ -71,13 +71,13 @@ export const UserSubscriptionsModal = ({ user, hideModal }) => {
             <tbody>
                 {subscriptionList && subscriptionList.length ?
                     subscriptionList.map(item => (
-                        <tr key={item.user_id}>
+                        <tr key={item}>
                             {item.read_error &&
                                 <td colSpan="5" className="text-danger">{item.read_error_message}</td>
                             }
                             {!item.read_error &&
                                 <>
-                                    <td>{item.product_name}{item.price_name ? " (" + item.price_name + ")" : ""}</td>
+                                <td>{item.product_name}{item.price_name ? " (" + item.price_name + ")" : ""}</td>
                                     <td>{item.amount} {item.currency}</td>
                                     <td>{item.interval_count == 1 ? item.interval : item.interval_count.toString() + " " + item.interval + "s"}</td>
                                     <td>{formatUtcTimestamp(item.current_period_start)} - {formatUtcTimestamp(item.current_period_end)}</td>
@@ -88,11 +88,11 @@ export const UserSubscriptionsModal = ({ user, hideModal }) => {
                     ))
                     :
                     (<tr>
-                        <td colspan="4" className="text-muted">(None)</td>
+                        <td colSpan="4" className="text-muted">(None)</td>
                     </tr>)
                 }
             </tbody>
-        </Table>
+        </table>
     }
 
     return (

@@ -34,7 +34,6 @@ export const AdminSubscriptionList = ({ x }) => {
                 success => {
                     const data = success.data;
                     if (typeof (data) === "object" && typeof (data.length) === "number") {
-                        console.log(success.data);
                         setData(success.data);
                         setDataLoaded(true);
                     }

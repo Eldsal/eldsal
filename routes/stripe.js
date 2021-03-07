@@ -2,6 +2,7 @@ const stripe_membfee = require('stripe')(process.env.REACT_APP_STRIPE_PRIVATE_KE
 const stripe_housecard = require('stripe')(process.env.REACT_APP_STRIPE_PRIVATE_KEY_ELDSAL_AB);
 const utils = require("./utils");
 const auth0 = require("./auth0");
+const { fee_flavour_membership, fee_flavour_housecard } = require('./utils');
 
 const { stringCompare, getDateString, getNormalizedAmount } = utils;
 
@@ -9,8 +10,9 @@ const { stringCompare, getDateString, getNormalizedAmount } = utils;
  * Stripe methods
  */
 
-/** A user, containing information about all Stripe subscriptions */
-class UserStripeSubscriptionInfo {
+/** A user (Auth0 user or "dummy" user if the Stripe user is not connected to an Auth0 user), containing information about all Stripe subscriptions. 
+ * Heavy object, not suitable to return to client. When returning to client, convert it to a UserStripeSubscriptionResultObject object. */
+class StripeSubscriptionUserInfo {
     constructor(user, email) {
         this.user = user; // Auth0 user
         this.email = email;
@@ -19,24 +21,18 @@ class UserStripeSubscriptionInfo {
         this.housecard_customer = null; // Stripe customer
         this.housecard_subscriptions = [];
         this.dummy_user_id = null;
-        if (user && user.app_metadata) {
-            this.stripe_customer_membfee = user.app_metadata.stripe_customer_membfee;
-            this.stripe_customer_housecard = user.app_metadata.stripe_customer_housecard;
-        }
-        else {
-            this.stripe_customer_membfee = null;
-            this.stripe_customer_housecard = null;
-        }
+        this.stripe_customer_membfee = getStripeCustomerForUser(user, fee_flavour_membership);
+        this.stripe_customer_housecard = getStripeCustomerForUser(user, fee_flavour_housecard);
     }
 }
 
 /**
- * A user, with information about all Stripe subscriptions
+ * A user (Auth0 user or "dummy" user if the Stripe user is not connected to an Auth0 user), with information about all Stripe subscriptions, suitable to pass to client
  */
 class UserStripeSubscriptionResultObject {
     /**
      * 
-     * @param {any} info - A UserStripeSubscriptionInfo object
+     * @param {any} info - A StripeSubscriptionUserInfo object
      */
     constructor(info) {
         this.email = info.email;
@@ -226,6 +222,29 @@ const getStripeClientForFlavour = (flavour) => {
 };
 
 /**
+ * Get the Stripe customer Id stored on an Auth0 user
+ * @param {any} user - An Auth0 user object
+ * @param {string} flavour - Fee flavour
+ */
+const getStripeCustomerForUser = (user, flavour) => {
+    if (user && user.app_metadata) {
+        switch (flavour) {
+            case fee_flavour_membership:
+                return user.app_metadata.stripe_customer_membfee;
+
+            case fee_flavour_housecard:
+                return user.app_metadata.stripe_customer_housecard;
+
+            default:
+                throw "Invalid fee flavour";
+        }
+    }
+    else {
+        return null;
+    }
+}
+
+/**
  * Read all items from "paged" collections in Stripe. Stripe never returns more than 100 items in one call, so we iterate the calls to read all items.
  * @param {any} listFunc
  * @param {any} args
@@ -256,16 +275,34 @@ async function readPagedStripeData(listFunc, args = null, limit = 100) {
     return allData;
 }
 
-async function readSubscriptions(stripe, userInfoByStripeCustomer, addDummyUserFunc, addCustomerFunc, addSubscriptionFunc) {
-    const customers = await readPagedStripeData((args) => stripe.customers.list(args));
+/**
+ * Read Stripe subscriptions
+ * @param {any} stripeClient - Stripe client
+ * @param {any} readFromCustomerId - If supplied, only subscriptions for the specified customer Id is read. Pass a null value to read all subscriptions
+ * @param {any} userInfoByStripeCustomer - A dictionary where the key is stripe customer Id and value is a StripeSubscriptionUserInfo object
+ * @param {any} addDummyUserFunc - A function for adding a dummy user (a user not found in userInfoByStripeCustomer). Type: (user: StripeSubscriptionUserInfo) => void
+ * @param {any} setUserCustomerFunc - A function for setting the Stripe customer Id on a user. Type: (user: StripeSubscriptionUserInfo, customer: [StripeCustomerObject]) => void
+ * @param {any} addSubscriptionFunc - A function for adding a subscription to a user. Type: (user: StripeSubscriptionUserInfo, subscription: StripeSubscriptionInfo) => void
+ */
+async function readSubscriptions(stripeClient, readFromCustomerId, userInfoByStripeCustomer, addDummyUserFunc, setUserCustomerFunc, addSubscriptionFunc) {
 
-    const products = await readPagedStripeData((args) => stripe.products.list(args));
+    let customers;
+
+    if (readFromCustomerId) {
+        var customer = await stripeClient.customers.retrieve(readFromCustomerId);
+        customers = [customer];
+    }
+    else {
+        customers = await readPagedStripeData((args) => stripeClient.customers.list(args));
+    }
+
+    const products = await readPagedStripeData((args) => stripeClient.products.list(args));
 
     for (var c of customers) {
         const email = c.email;
         let user = userInfoByStripeCustomer[c.id];
         if (user) {
-            addCustomerFunc(user, c);
+            setUserCustomerFunc(user, c);
             c._user = user;
         }
         else {
@@ -276,7 +313,9 @@ async function readSubscriptions(stripe, userInfoByStripeCustomer, addDummyUserF
     const customersById = {};
     customers.forEach(x => customersById[x.id] = x);
 
-    let subscriptions = await readPagedStripeData((args) => stripe.subscriptions.list(args));
+    let subArgs = readFromCustomerId ? { customer: readFromCustomerId } : null;
+
+    let subscriptions = await readPagedStripeData((args) => stripeClient.subscriptions.list(args), subArgs);
 
     let nextDummyUserId = -1;
 
@@ -297,9 +336,9 @@ async function readSubscriptions(stripe, userInfoByStripeCustomer, addDummyUserF
         }
 
         if (createDummyUser) {
-            const dummyUser = new UserStripeSubscriptionInfo(null, customer.email);
+            const dummyUser = new StripeSubscriptionUserInfo(null, customer.email);
             dummyUser.dummy_user_id = nextDummyUserId--;
-            addCustomerFunc(dummyUser, customer);
+            setUserCustomerFunc(dummyUser, customer);
             customer._user = dummyUser;
             addDummyUserFunc(dummyUser);
         }
@@ -313,12 +352,23 @@ async function readSubscriptions(stripe, userInfoByStripeCustomer, addDummyUserF
  */
 const getStripeSubscriptions = async () => {
 
+    const userInfoList = await _getStripeSubscriptions();
+
+    const result = userInfoList.map(x => new UserStripeSubscriptionResultObject(x));
+
+    return result.sort((a, b) => stringCompare(a.user_name, b.user_name));
+}
+
+/** Get all active Stripe subscriptions, and return a list of StripeSubscriptionUserInfo objects  */
+const _getStripeSubscriptions = async () => {
+
     const users = (await auth0.getManagementClient().getUsers());
 
-    const userInfo = users.map(x => new UserStripeSubscriptionInfo(x, x.email));
+    // List of StripeSubscriptionUserInfo objects
+    const userInfoList = users.map(x => new StripeSubscriptionUserInfo(x, x.email));
 
     const userInfoByMembfeeCustomer = {};
-    userInfo.forEach(x => {
+    userInfoList.forEach(x => {
         var stripeCustomer = x.stripe_customer_membfee;
         if (stripeCustomer) {
             userInfoByMembfeeCustomer[stripeCustomer] = x;
@@ -326,7 +376,7 @@ const getStripeSubscriptions = async () => {
     });
 
     const userInfoByHousecardCustomer = {};
-    userInfo.forEach(x => {
+    userInfoList.forEach(x => {
         var stripeCustomer = x.stripe_customer_housecard;
         if (stripeCustomer) {
             userInfoByHousecardCustomer[stripeCustomer] = x;
@@ -336,55 +386,168 @@ const getStripeSubscriptions = async () => {
 
     await readSubscriptions(
         stripe_membfee,
+        null,
         userInfoByMembfeeCustomer,
-        (user) => userInfo.push(user),
+        (user) => userInfoList.push(user),
         (user, customer) => user.membfee_customer = customer,
         (user, subscription) => user.membfee_subscriptions.push(subscription));
 
     await readSubscriptions(
         stripe_housecard,
+        null,
         userInfoByHousecardCustomer,
-        (user) => userInfo.push(user),
+        (user) => userInfoList.push(user),
         (user, customer) => user.housecard_customer = customer,
         (user, subscription) => user.housecard_subscriptions.push(subscription));
 
-    let result = userInfo.map(x => new UserStripeSubscriptionResultObject(x));
-
-    return result.sort((a, b) => stringCompare(a.user_name, b.user_name));
+    return userInfoList;
 }
 
-/**
- * Get all active Stripe subscriptions for a user
- * @param {any} userId
+/** Get all active Stripe subscriptions for a user
+ * @param {number} userId
+ * @returns - A UserStripeSubscriptionResultObject object
  */
 const getStripeSubscriptionsForUser = async (userId) => {
 
-    const user = await auth0.getManagementClient().getUser({ id: userId });
-
-    const userInfo = new UserStripeSubscriptionInfo(user, user.email);
-
-    const userInfoByMembfeeCustomer = {};
-    userInfoByMembfeeCustomer[userInfo.stripe_customer_membfee] = userInfo;
-
-    const userInfoByHousecardCustomer = {};
-    userInfoByHousecardCustomer[userInfo.stripe_customer_housecard] = userInfo;
-
-
-    await readSubscriptions(
-        stripe_membfee,
-        userInfoByMembfeeCustomer,
-        (user) => { },
-        (user, customer) => user.membfee_customer = customer,
-        (user, subscription) => { user.membfee_subscriptions.push(subscription) });
-
-    await readSubscriptions(
-        stripe_housecard,
-        userInfoByHousecardCustomer,
-        (user) => { },
-        (user, customer) => user.housecard_customer = customer,
-        (user, subscription) => user.housecard_subscriptions.push(subscription));
+    const userInfo = await _getStripeSubscriptionsForUser(userId);
 
     return new UserStripeSubscriptionResultObject(userInfo);
+}
+
+/**
+ * Get all active Stripe subscriptions for a user, and return a StripeSubscriptionUserInfo objects
+ * @param {number} userId
+ * @returns - A StripeSubscriptionUserInfo object
+ */
+const _getStripeSubscriptionsForUser = async (userId) => {
+
+    const user = await auth0.getManagementClient().getUser({ id: userId });
+
+    const userInfo = new StripeSubscriptionUserInfo(user, user.email);
+
+    if (userInfo.stripe_customer_membfee) {
+        const userInfoByMembfeeCustomer = {};
+        userInfoByMembfeeCustomer[userInfo.stripe_customer_membfee] = userInfo;
+
+        await readSubscriptions(
+            stripe_membfee,
+            userInfo.stripe_customer_membfee,
+            userInfoByMembfeeCustomer,
+            (user) => { },
+            (user, customer) => user.membfee_customer = customer,
+            (user, subscription) => { user.membfee_subscriptions.push(subscription) });
+    }
+
+    if (userInfo.stripe_customer_housecard) {
+        const userInfoByHousecardCustomer = {};
+        userInfoByHousecardCustomer[userInfo.stripe_customer_housecard] = userInfo;
+
+        await readSubscriptions(
+            stripe_housecard,
+            userInfo.stripe_customer_housecard,
+            userInfoByHousecardCustomer,
+            (user) => { },
+            (user, customer) => user.housecard_customer = customer,
+            (user, subscription) => user.housecard_subscriptions.push(subscription));
+    }
+
+    return userInfo;
+}
+
+/** Sync Stripe payments with stored information for Auth0 users, and update Auth0 user accordingly */
+const syncUsers = async () => {
+    const subscriptions = await _getStripeSubscriptions();
+
+    for (var userInfo of subscriptions) {
+        if (userInfo.user) {
+
+            var userClientObject = auth0.getUserClientObject(userInfo.user, true);
+
+            let membfeeSubscription = null;
+            // If more than one subscription is found, use the one with the latest end date
+            for (var s of userInfo.membfee_subscriptions) {
+                if (membfeeSubscription == null || s.current_period_end > membfeeSubscription.current_period_end) {
+                    membfeeSubscription = s;
+                }
+            }
+            const membfeePayment = getPaymentPropertyForSubscription(membfeeSubscription);
+
+            let housecardSubscription = null;
+            // If more than one subscription is found, use the one with the latest end date
+            for (var s of userInfo.housecard_subscriptions) {
+                if (housecardSubscription == null || s.current_period_end > housecardSubscription.current_period_end) {
+                    housecardSubscription = s;
+                }
+            }
+            const housecardPayment = getPaymentPropertyForSubscription(housecardSubscription);
+
+            if (shouldUpdatePayment(userClientObject.payments.membership, membfeePayment)) {
+                console.log("Update membership for " + userInfo.user.name);
+                await auth0.adminUpdateUserFee(utils.fee_flavour_membership, userInfo.user.user_id, membfeePayment.getPaymentSaveArguments())
+            }
+
+            if (shouldUpdatePayment(userClientObject.payments.housecard, housecardPayment)) {
+                console.log("Update housecard for " + userInfo.user.name);
+                console.log(userClientObject.payments.housecard);
+                await auth0.adminUpdateUserFee(utils.fee_flavour_housecard, userInfo.user.user_id, housecardPayment.getPaymentSaveArguments())
+            }
+        }
+    }
+}
+
+const shouldUpdatePayment = (dbPayment, newPayment) => {
+    if (!dbPayment.payed) {
+        // The existing payment in DB is unpayed
+        if (newPayment.payed) {
+            // The new payment is payed - update
+            return true;
+        }
+        else {
+            // The new payment is also unpayed
+            // If a period end is stored in DB (and no newer period end is found on the new payment), keep it, else update (if the period end differs from the stored one)
+            if (dbPayment.periodEnd && (!newPayment.periodEnd || dbPayment.periodEnd >= newPayment.periodEnd))
+                return false;
+            else
+                return dbPayment.periodEnd != newPayment.periodEnd;
+        }
+    }
+    else {
+        // The existing payment in DB is payed
+        if (dbPayment.method == "stripe") {
+            // The existing database payment is a Stripe payment - update if different
+            return !dbPayment.isEqualTo(newPayment);
+        }
+        else {
+            // The existing payment is not a Stripe payment
+            if (newPayment.payed) {
+                // The new payment is payed
+                // Update if the new period end is later than the existing period end
+                return newPayment.periodEnd > dbPayment.periodEnd;
+            }
+            else {
+                // The new payment is unpayed - don't update
+                return false;
+            }
+        }
+    }
+}
+
+const getDateFromEpochTimestamp = (timestamp) => {
+    if (timestamp == null)
+        return null;
+
+    return new Date(timestamp * 1000);
+}
+
+const getPaymentPropertyForSubscription = (subscription) => {
+
+    if (subscription == null)
+        return new auth0.UserPaymentProperty(false, null, null, null, null, "stripe", null, null);
+
+    var periodStart = getDateString(getDateFromEpochTimestamp(subscription.current_period_start));
+    var periodEnd = getDateString(getDateFromEpochTimestamp(subscription.current_period_end));
+
+    return new auth0.UserPaymentProperty(true, periodStart, periodEnd, subscription.interval, subscription.interval_count, "stripe", subscription.amount, subscription.currency);
 }
 
 /**
@@ -395,6 +558,56 @@ const getStripeSubscriptionsForUser = async (userId) => {
 const cancelStripeSubscription = async (flavour, subscriptionId) => {
     const stripeClient = getStripeClientForFlavour(flavour);
     return await stripeClient.subscriptions.del(subscriptionId);
+}
+
+/**
+ * Cancel a Stripe subscription, and check that it belongs to a specific user
+ * @param {number} userId
+ * @param {string} flavour - Fee flavour
+ * @param {number} subscriptionId
+ */
+const cancelStripeSubscriptionForUser = async (userId, flavour, subscriptionId) => {
+
+    var user = await auth0.getAuth0User(userId);
+
+    var stripeCustomer = getStripeCustomerForUser(user, flavour);
+
+    if (!stripeCustomer)
+        throw "No Stripe customer stored on the user";
+
+    var subUser = await _getStripeSubscriptionsForUser(userId);
+
+
+    let subscriptionsToSearch;
+    switch (flavour) {
+        case fee_flavour_membership:
+            subscriptionsToSearch = subUser.membfee_subscriptions;
+            break;
+
+        case fee_flavour_housecard:
+            subscriptionsToSearch = subUser.housecard_subscriptions;
+            break;
+
+        default:
+            throw "Invalid fee flavor";
+    }
+
+    let subscriptionFound = false;
+    if (subscriptionsToSearch) {
+        for (var s of subscriptionsToSearch) {
+            if (s.subscription_id == subscriptionId) {
+                subscriptionFound = true;
+                break;
+            }
+        }
+    }
+
+    if (subscriptionFound) {
+        return cancelStripeSubscription(flavour, subscriptionId);
+    }
+    else {
+        throw "Subscription not found";
+    }
 }
 
 /**
@@ -468,22 +681,36 @@ const createCheckoutSession = async (flavour, userId, price) => {
 }
 
 module.exports = {
+    /**
+    * A user (Auth0 user or "dummy" user if the Stripe user is not connected to an Auth0 user), with information about all Stripe subscriptions, suitable to pass to client
+    */
+    UserStripeSubscriptionResultObject,
+    /** Information about a Stripe subscription */
+    StripeSubscriptionInfo,
     /** List all active Stripe subscriptions (for all users)
      * @returns - A list of UserStripeSubscriptionResultObject objects
      */
     getStripeSubscriptions,
     getStripeSubscriptionsForUser,
     /**
-     * Cancel a Stripe subscription
+     * Cancel a Stripe subscription (to user for admins)
      * @param {string} flavour - Fee flavour
      * @param {number} subscriptionId
      */
     cancelStripeSubscription,
+    /**
+     * Cancel a Stripe subscription, and check that it belongs to a specific user (to be used for end-users)
+     * @param {number} userId
+     * @param {string} flavour - Fee flavour
+     * @param {number} subscriptionId
+     */
+    cancelStripeSubscriptionForUser,
     checkStripeSession,
     createCheckoutSession,
     /**
      * Get all Stripe prices and products
      * @param {any} flavour
      */
-    getPrices
+    getPrices,
+    syncUsers,
 }
