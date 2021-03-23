@@ -49,6 +49,25 @@ router.get('/getLoggedInUser', checkJwt, async function (req, res) {
         });
 });
 
+/* Sync Stripe payments for logged in user
+ **/
+router.patch('/sync-user', checkJwt, async function (req, res) {
+
+    console.log('sync-user');
+    const userId = req.user.sub;
+    console.log(userId);
+
+    stripe.syncUser(userId)
+        .then(success => auth0.getUser(userId, true))
+        .then(data => res.json(data))
+        .catch(function (err) {
+            // Handle error.
+            console.error(err);
+            returnError(res, err);
+        });
+
+});
+
 /* Update a user
  * Argument object:
  *  given_name
@@ -143,7 +162,7 @@ router.get('/admin/export-users', checkJwt, checkUserIsAdmin, async function (re
             });
 });
 
-/* Get users
+/* Sync Stripe payments for all users
  **/
 router.patch('/admin/sync-users', checkJwt, checkUserIsAdmin, async function (req, res) {
 
@@ -159,6 +178,26 @@ router.patch('/admin/sync-users', checkJwt, checkUserIsAdmin, async function (re
         });
 
 });
+
+/* Sync Stripe payments for a user
+ **/
+router.patch('/admin/sync-user/:userId', checkJwt, checkUserIsAdmin, async function (req, res) {
+
+    console.log('admin/sync-user');
+    const userId = req.params.userId;
+    console.log(userId);
+
+    stripe.syncUser(userId)
+        .then(success => auth0.getUser(userId,true))
+        .then(data => res.json(data))
+        .catch(function (err) {
+            // Handle error.
+            console.error(err);
+            returnError(res, err);
+        });
+
+});
+
 
 /* Update membership fee payment for user
  * Argument object:
@@ -304,8 +343,14 @@ router.get('/check-stripe-session', checkJwt, async (req, res) => {
     const flavour = req.query.flavour;
     const userId = req.user.sub;
 
-    await stripe.checkStripeSession(flavour, userId);
-    res.json({});
+    try {
+        await stripe.checkStripeSession(flavour, userId);
+        await stripe.syncUser(userId);
+        res.json({});
+    }
+    catch (err) {
+        returnError(res, err);
+    }
 });
 
 router.post('/create-checkout-session', checkJwt, async (req, res) => {

@@ -140,19 +140,20 @@ class UserPaymentProperty {
     }
 
     getPaymentSaveArguments() {
-        return new PaymentSaveArguments(this.method, this.periodStart, this.interval, this.intervalCount, this.amount, this.currency);
+        return new PaymentSaveArguments(this.method, this.periodStart, this.periodEnd, this.interval, this.intervalCount, this.amount, this.currency);
     }
 }
 
 /** Arguments for saving a payment for a user */
 class PaymentSaveArguments {
-    constructor(method, periodStart, interval, intervalCount, amount, currency) {
+    constructor(method, periodStart, periodEnd, interval, intervalCount, amount, currency) {
         this.method = method;
         this.period_start = periodStart;
+        this.period_end = periodEnd;
         this.interval = interval;
         this.interval_count = intervalCount;
         this.amount = amount;
-        this.currency = currency.toUpperCase();
+        this.currency = currency ? currency.toUpperCase() : null;
     }
 }
 
@@ -272,6 +273,7 @@ const getUserAppMetaDataFee = (user, paymentProperty, normalizedInterval) => {
 
     if (payment) {
         periodStart = payment["period_start"];
+        periodEnd = payment["period_end"];
 
         if (periodStart) {
 
@@ -282,11 +284,17 @@ const getUserAppMetaDataFee = (user, paymentProperty, normalizedInterval) => {
             method = payment["method"];
 
             var periodStartDate = new Date(periodStart);
+            var periodEndDate = new Date(periodEnd);
 
             if (!periodStartDate || isNaN(periodStartDate.getTime())) {
                 hasPayed = false;
                 isError = true;
                 errorMessage = 'The stored period start date has an invalid format';
+            }
+            else if (!periodEndDate || isNaN(periodEndDate.getTime())) {
+                hasPayed = false;
+                isError = true;
+                errorMessage = 'The stored period end date has an invalid format';
             }
             else if (interval != "year" && interval != "month") {
                 hasPayed = false;
@@ -312,21 +320,6 @@ const getUserAppMetaDataFee = (user, paymentProperty, normalizedInterval) => {
 
                 var now = new Date();
                 var today = new Date(now.getUTCFullYear(), now.getMonth(), now.getDate()); // Get current date, without time
-
-                var periodEndDate;
-                switch (interval) {
-                    case "year":
-                        periodEndDate = new Date(periodStartDate.setUTCFullYear(periodStartDate.getUTCFullYear() + intervalCount));
-                        break;
-                    case "month":
-                        periodEndDate = new Date(periodStartDate.setMonth(periodStartDate.getMonth() + intervalCount));
-                        break;
-                    default:
-                        // Should not happen
-                        periodEnd = periodStart;
-                        break;
-                }
-                periodEnd = getDateString(periodEndDate);
 
                 hasPayed = periodEndDate >= today;
 
@@ -432,7 +425,7 @@ const updateUserProfile = async (userId, req) => {
 const getPaymentSaveArgumentsFromRequest = (req) => {
     const { payed, method, periodStart, interval, intervalCount, amount, currency } = req.body;
 
-    var argMethod, argPeriodStart, argInterval, argIntervalCount, argAmount, argCurrency;
+    var argMethod, argPeriodStart, argPeriodEnd, argInterval, argIntervalCount, argAmount, argCurrency;
 
     switch (payed) {
         case true:
@@ -460,21 +453,26 @@ const getPaymentSaveArgumentsFromRequest = (req) => {
 
             argPeriodStart = periodStart;
 
-            // Interval
-            switch (interval) {
-                case "year":
-                case "month":
-                    argInterval = interval;
-                    break;
-
-                default:
-                    throw `Invalid interval ${interval}`;
-            }
+            var periodStartAsDate = new Date(argPeriodStart);
 
             // Interval count
             argIntervalCount = parseInt(intervalCount);
             if (isNaN(argIntervalCount) || argIntervalCount <= 0)
                 throw "Invalid interval count";
+
+            // Interval
+            argInterval = interval;
+            switch (interval) {
+                case "year":
+                    argPeriodEnd = utils.getDateString(new Date(periodStartAsDate.setFullYear(periodStartAsDate.getFullYear() + argIntervalCount)));
+                    break;
+                case "month":
+                    argPeriodEnd = utils.getDateString(new Date(periodStartAsDate.setMonth(periodStartAsDate.getMonth() + argIntervalCount)));
+                    break;
+
+                default:
+                    throw `Invalid interval ${interval}`;
+            }
 
             // Amount
             argAmount = parseInt(amount);
@@ -490,7 +488,8 @@ const getPaymentSaveArgumentsFromRequest = (req) => {
             break;
 
         case false:
-            argPayedUntil = null;
+            argPeriodStart = null;
+            argPeriodEnd = null;
             argMethod = null;
             argAmount = null;
             break;
@@ -499,7 +498,7 @@ const getPaymentSaveArgumentsFromRequest = (req) => {
             throw "Invalid value for \"payed\"";
     }
 
-    return new PaymentSaveArguments(argMethod, argPeriodStart, argInterval, argIntervalCount, argAmount, argCurrency);
+    return new PaymentSaveArguments(argMethod, argPeriodStart, argPeriodEnd, argInterval, argIntervalCount, argAmount, argCurrency);
 }
 
 /**

@@ -9,7 +9,7 @@ module.exports = {
     /** Flavour value for "Housecard fee", used as argument value to specify fee */
     fee_flavour_housecard: "housecard",
 
-    // Compare strings alphabetically
+    /** Compare strings alphabetically */
     stringCompare: (a, b) => {
         var nameA = a == null ? "" : a.toUpperCase(); // ignore upper and lowercase
         var nameB = b == null ? "" : b.toUpperCase(); // ignore upper and lowercase
@@ -23,7 +23,7 @@ module.exports = {
         return 0;
     },
 
-    // Get a date string in the format "YYYY-MM-DD"
+    /** Get a date string in the format "YYYY-MM-DD" */
     getDateString: (date) => {
         if (date) {
             return new Intl.DateTimeFormat('sv-SE').format(date);
@@ -33,7 +33,7 @@ module.exports = {
         }
     },
 
-    // Get a "normalized" amount, i.e. the amount per year or per month, based on a the amount payed for a number of years or months
+    /** Get a "normalized" amount, i.e. the amount per year or per month, based on a the amount payed for a number of years or months */
     getNormalizedAmount: (normalizedInterval, amount, interval, intervalCount) => {
         if (amount === 0) {
             return 0;

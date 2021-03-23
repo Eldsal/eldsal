@@ -1,36 +1,39 @@
-import React, {useEffect} from "react";
-import {useLocation} from "react-router-dom";
-import {useAuth0, withAuthenticationRequired} from "@auth0/auth0-react";
-import axios from "axios";
+import React, { useEffect } from "react";
+import { useLocation } from "react-router-dom";
+import { useAuth0, withAuthenticationRequired } from "@auth0/auth0-react";
 import AppContent from "../common/AppContent";
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { useApi } from '../../hooks/api';
 
 function useQuery() {
-  return new URLSearchParams(useLocation().search);
+    return new URLSearchParams(useLocation().search);
 }
 
 const AfterPurchasePage = () => {
-  const { getAccessTokenSilently } = useAuth0();
-  const query = useQuery();
+    const { getAccessTokenSilently } = useAuth0();
+    const query = useQuery();
+    const { apiGet, apiPatch, apiPost } = useApi();
 
-  const checkStatus = async () => {
-    const flavour = query.get("flavour");
-    const accessToken = await getAccessTokenSilently();
-    await axios.get(`/api/check-stripe-session?flavour=${flavour}`, {
-      headers: {
-        Authorization: `Bearer ${accessToken}`
-      }
-    });
-  };
+    const checkStatus = async () => {
+        const flavour = query.get("flavour");
 
-  useEffect(() => {
-    checkStatus().then(window.location.href = "/subscription");
-  }, []);
+        apiGet(`check-stripe-session?flavour=${flavour}`)
+            .then(success => {
+                window.location.href = "/subscription";
+            },
+                error => alert("An error occurred: " + error)
+            );
+    };
 
-  return (
-    <AppContent>
-      <h1>Please wait</h1>
-    </AppContent>
-  );
+    useEffect(() => {
+        checkStatus();
+    }, []);
+
+    return (
+        <AppContent>
+            <span><FontAwesomeIcon icon="spinner" spin /> Please wait...</span>
+        </AppContent>
+    );
 };
 
 export default withAuthenticationRequired(AfterPurchasePage);

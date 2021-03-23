@@ -460,37 +460,50 @@ const syncUsers = async () => {
 
     for (var userInfo of subscriptions) {
         if (userInfo.user) {
+            await _syncSubscriptions(userInfo);
+        }
+    }
+}
 
-            var userClientObject = auth0.getUserClientObject(userInfo.user, true);
+/** Sync Stripe payments with stored information for Auth0 users, and update Auth0 user accordingly */
+const syncUser = async (userId) => {
+    const userInfo = await _getStripeSubscriptionsForUser(userId);
 
-            let membfeeSubscription = null;
-            // If more than one subscription is found, use the one with the latest end date
-            for (var s of userInfo.membfee_subscriptions) {
-                if (membfeeSubscription == null || s.current_period_end > membfeeSubscription.current_period_end) {
-                    membfeeSubscription = s;
-                }
+    await _syncSubscriptions(userInfo);
+}
+
+const _syncSubscriptions = async (userInfo) => {
+    if (userInfo.user) {
+
+        var userClientObject = auth0.getUserClientObject(userInfo.user, true);
+
+        let membfeeSubscription = null;
+        // If more than one subscription is found, use the one with the latest end date
+        for (var s of userInfo.membfee_subscriptions) {
+            if (membfeeSubscription == null || s.current_period_end > membfeeSubscription.current_period_end) {
+                membfeeSubscription = s;
             }
-            const membfeePayment = getPaymentPropertyForSubscription(membfeeSubscription);
+        }
+        const membfeePayment = getPaymentPropertyForSubscription(membfeeSubscription);
 
-            let housecardSubscription = null;
-            // If more than one subscription is found, use the one with the latest end date
-            for (var s of userInfo.housecard_subscriptions) {
-                if (housecardSubscription == null || s.current_period_end > housecardSubscription.current_period_end) {
-                    housecardSubscription = s;
-                }
+        let housecardSubscription = null;
+        // If more than one subscription is found, use the one with the latest end date
+        for (var s of userInfo.housecard_subscriptions) {
+            if (housecardSubscription == null || s.current_period_end > housecardSubscription.current_period_end) {
+                housecardSubscription = s;
             }
-            const housecardPayment = getPaymentPropertyForSubscription(housecardSubscription);
+        }
+        const housecardPayment = getPaymentPropertyForSubscription(housecardSubscription);
 
-            if (shouldUpdatePayment(userClientObject.payments.membership, membfeePayment)) {
-                console.log("Update membership for " + userInfo.user.name);
-                await auth0.adminUpdateUserFee(utils.fee_flavour_membership, userInfo.user.user_id, membfeePayment.getPaymentSaveArguments())
-            }
+        if (shouldUpdatePayment(userClientObject.payments.membership, membfeePayment)) {
+            console.log("Update membership for " + userInfo.user.name);
+            await auth0.adminUpdateUserFee(utils.fee_flavour_membership, userInfo.user.user_id, membfeePayment.getPaymentSaveArguments())
+        }
 
-            if (shouldUpdatePayment(userClientObject.payments.housecard, housecardPayment)) {
-                console.log("Update housecard for " + userInfo.user.name);
-                console.log(userClientObject.payments.housecard);
-                await auth0.adminUpdateUserFee(utils.fee_flavour_housecard, userInfo.user.user_id, housecardPayment.getPaymentSaveArguments())
-            }
+        if (shouldUpdatePayment(userClientObject.payments.housecard, housecardPayment)) {
+            console.log("Update housecard for " + userInfo.user.name);
+            console.log(userClientObject.payments.housecard);
+            await auth0.adminUpdateUserFee(utils.fee_flavour_housecard, userInfo.user.user_id, housecardPayment.getPaymentSaveArguments())
         }
     }
 }
@@ -603,7 +616,8 @@ const cancelStripeSubscriptionForUser = async (userId, flavour, subscriptionId) 
     }
 
     if (subscriptionFound) {
-        return cancelStripeSubscription(flavour, subscriptionId);
+        await cancelStripeSubscription(flavour, subscriptionId);
+        return syncUser(userId);
     }
     else {
         throw "Subscription not found";
@@ -712,5 +726,6 @@ module.exports = {
      * @param {any} flavour
      */
     getPrices,
+    syncUser,
     syncUsers,
 }
