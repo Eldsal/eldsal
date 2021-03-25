@@ -8,13 +8,15 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { useApi } from '../hooks/api';
 import { UserModal } from './UserModal';
 import { formatDate } from '../utils.js';
+import { useUi } from '../hooks/ui';
 
-export const AdminUserList = ({ x }) => {
+export const AdminUserList = () => {
 
     const [usersLoaded, setUsersLoaded] = useState(false);
     const [users, setUsers] = useState(null);
-    const { apiGet } = useApi();
     const [selectedUser, setSelectedUser] = useState(null);
+    const { apiGet, apiPatch } = useApi();
+    const { alertModal } = useUi(); 
 
     ReactModal.setAppElement("body");
 
@@ -56,8 +58,7 @@ export const AdminUserList = ({ x }) => {
         }
     }
 
-    const exportUsers = () =>
-    {
+    const exportUsers = () => {
         apiGet(`admin/export-users`)
             .then((response) => {
                 const fileName = "Eldsäl Member List " + formatDate(new Date()) + ".csv";
@@ -68,6 +69,18 @@ export const AdminUserList = ({ x }) => {
                 document.body.appendChild(link);
                 link.click();
             });
+    }
+
+    const syncUsers = () => {
+        apiPatch(`admin/sync-users`)
+            .then(success => {
+                setUsers(success.data);
+                alertModal("success", "Stripe payments are synced");
+            },
+                error => {
+                    alertModal("error", "Stripe syncing failed");
+                }
+            )
     }
 
     useEffect(() => {
@@ -119,13 +132,14 @@ export const AdminUserList = ({ x }) => {
                         ))
                         :
                         (<tr>
-                            <td colspan="4">(No users found)</td>
+                            <td colSpan="4">(No users found)</td>
                         </tr>)
                     }
                 </tbody>
             </Table>
             <div className="mt-4">
-                <button className="btn btn-outline-secondary" onClick={()=>exportUsers() }>Download member list</button>
+                <button className="btn btn-outline-secondary mr-2" onClick={() => syncUsers()}>Sync Stripe payments</button>
+                <button className="btn btn-outline-secondary mr-2" onClick={() => exportUsers()}>Download member list</button>
             </div>
         </>
         );

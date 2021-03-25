@@ -32,6 +32,20 @@ export const useApi = () => {
             })
     };
 
+    const apiPost = async (url, args) => {
+        return getAccessTokenSilently()
+            .then(accessToken => {
+                return axios.post('/api/' + url,
+                    args,
+                    {
+                        headers: {
+                            Authorization: `Bearer ${accessToken}`,
+                            'Content-Type': 'application/json',
+                        },
+                    })
+            })
+    };
+
     /**
      * Get an error message sent by server side (as JSON response body { error: 'message' })
      * @param {any} error
@@ -43,7 +57,7 @@ export const useApi = () => {
             return null;
     }
 
-    return { apiGet, apiPatch, apiGetErrorMessage };
+    return { apiGet, apiPatch, apiPost, apiGetErrorMessage };
 };
 
 export default useApi;

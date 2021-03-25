@@ -60,6 +60,103 @@ class UserClientObject {
     }
 }
 
+class UserPaymentProperty {
+    constructor(payed,
+        periodStart,
+        periodEnd,
+        interval,
+        intervalCount,
+        method,
+        amount,
+        currency,
+        error = false,
+        errorMessage = null) {
+        this.payed = payed;
+        this.periodStart = periodStart;
+        this.periodEnd = periodEnd;
+        this.interval = interval;
+        this.intervalCount = intervalCount;
+        this.method = method;
+        this.amount = amount;
+        this.currency = currency ? currency.toUpperCase() : "SEK";
+        this.error = error;
+        this.errorMessage = errorMessage;
+
+        // Normalized amounts are set using setNormalizedAmount
+        this.normalizedAmount = null;
+        this.normalizedInterval = null;
+
+        if (method) {
+            switch (method) {
+                case "manual":
+                    this.methodName = "Manual";
+                    break;
+
+                case "stripe":
+                    this.methodName = "Stripe";
+                    break;
+
+                default:
+                    this.methodName = "(unknown: " + method + ")";
+                    break;
+            }
+
+        }
+        else {
+            this.methodName = "(none)";
+        }
+    }
+
+    /**
+     * Set a normalized per month, i.e. the amount per year or month
+     * @param {any} normalizedInterval "year" or "month"
+     */
+    setNormalizedAmount(normalizedInterval) {
+        // Normalize amount
+        this.normalizedInterval = normalizedInterval;
+        this.normalizedAmount = getNormalizedAmount(normalizedInterval, this.amount, this.interval, this.intervalCount);
+    }
+
+    /**
+     * If this payment is equal to another payment object. Used to check if a payment property should be updated
+     * @param {any} payment
+     */
+    isEqualTo(payment) {
+        if (payment === null)
+            return false;
+
+        if (this.error || payment.error) {
+            return this.error === payment.error
+                && this.errorMessage === payment.errorMessage;
+        }
+
+        return this.payed === payment.payed
+            && this.periodStart === payment.periodStart
+            && this.periodEnd === payment.periodEnd
+            && this.interval === payment.interval
+            && this.intervalCount === payment.intervalCount
+            && this.method === payment.method
+            && this.amount === payment.amount;
+    }
+
+    getPaymentSaveArguments() {
+        return new PaymentSaveArguments(this.method, this.periodStart, this.periodEnd, this.interval, this.intervalCount, this.amount, this.currency);
+    }
+}
+
+/** Arguments for saving a payment for a user */
+class PaymentSaveArguments {
+    constructor(method, periodStart, periodEnd, interval, intervalCount, amount, currency) {
+        this.method = method;
+        this.period_start = periodStart;
+        this.period_end = periodEnd;
+        this.interval = interval;
+        this.interval_count = intervalCount;
+        this.amount = amount;
+        this.currency = currency ? currency.toUpperCase() : null;
+    }
+}
+
 const getManagementClient = () => {
     return new ManagementClient({
         domain: process.env.AUTH0_MGT_DOMAIN,
@@ -67,6 +164,29 @@ const getManagementClient = () => {
         clientSecret: process.env.AUTH0_MGT_CLIENT_SECRET,
         scope: 'read:users update:users'
     });
+}
+
+/**
+ * Get a user and return it as a UserClientObject
+ * @param {number} userId
+ * @param {boolean} includePayments - If payments should be included in the client object
+ */
+const getUser = async (userId, includePayments = true) => {
+    return getAuth0User(userId)
+        .then(function (user) {
+            return getUserClientObject(user, includePayments);
+        })
+}
+
+/**
+ * Get a user and return it as an Auth0 user object
+ * @param {number} userId
+ */
+const getAuth0User = async (userId) => {
+    const params = { id: userId };
+
+    return getManagementClient()
+        .getUser(params);
 }
 
 /**
@@ -144,9 +264,7 @@ const getUserAppMetaDataFee = (user, paymentProperty, normalizedInterval) => {
     var interval = null; // String, no time
     var intervalCount = null; // String, no time
     var method = "";
-    var methodName = "(none)";
     var amount = null;
-    var normalizedAmount = null;
     var currency = null;
     var isError = false;
     var errorMessage = null;
@@ -155,6 +273,7 @@ const getUserAppMetaDataFee = (user, paymentProperty, normalizedInterval) => {
 
     if (payment) {
         periodStart = payment["period_start"];
+        periodEnd = payment["period_end"];
 
         if (periodStart) {
 
@@ -165,11 +284,17 @@ const getUserAppMetaDataFee = (user, paymentProperty, normalizedInterval) => {
             method = payment["method"];
 
             var periodStartDate = new Date(periodStart);
+            var periodEndDate = new Date(periodEnd);
 
             if (!periodStartDate || isNaN(periodStartDate.getTime())) {
                 hasPayed = false;
                 isError = true;
                 errorMessage = 'The stored period start date has an invalid format';
+            }
+            else if (!periodEndDate || isNaN(periodEndDate.getTime())) {
+                hasPayed = false;
+                isError = true;
+                errorMessage = 'The stored period end date has an invalid format';
             }
             else if (interval != "year" && interval != "month") {
                 hasPayed = false;
@@ -195,21 +320,6 @@ const getUserAppMetaDataFee = (user, paymentProperty, normalizedInterval) => {
 
                 var now = new Date();
                 var today = new Date(now.getUTCFullYear(), now.getMonth(), now.getDate()); // Get current date, without time
-
-                var periodEndDate;
-                switch (interval) {
-                    case "year":
-                        periodEndDate = new Date(periodStartDate.setUTCFullYear(periodStartDate.getUTCFullYear() + intervalCount));
-                        break;
-                    case "month":
-                        periodEndDate = new Date(periodStartDate.setMonth(periodStartDate.getMonth() + intervalCount));
-                        break;
-                    default:
-                        // Should not happen
-                        periodEnd = periodStart;
-                        break;
-                }
-                periodEnd = getDateString(periodEndDate);
 
                 hasPayed = periodEndDate >= today;
 
@@ -242,21 +352,20 @@ const getUserAppMetaDataFee = (user, paymentProperty, normalizedInterval) => {
         }
     }
 
-    return {
-        payed: hasPayed,
-        periodStart: periodStart,
-        periodEnd: periodEnd,
-        interval: interval,
-        intervalCount: intervalCount,
-        method: method,
-        methodName: methodName,
-        amount: amount,
-        normalizedAmount: normalizedAmount,
-        normalizedInterval: normalizedInterval,
-        currency: currency ? currency.toUpperCase() : "SEK",
-        error: isError,
-        errorMessage: errorMessage
-    }
+    var prop = new UserPaymentProperty(hasPayed, periodStart, periodEnd, interval, intervalCount, method, amount, currency, isError, errorMessage);
+    prop.setNormalizedAmount(normalizedInterval);
+
+    return prop;
+}
+
+/** Get all users (in the current connection) */
+const getUsers = async () => {
+    return getManagementClient()
+        .getUsers()
+        .then(users => {
+            // Filter out only users from the connection specified in the env file
+            return users.filter(user => isUserInCurrentConnection(user)).map(user => getUserClientObject(user)).sort((a, b) => stringCompare(a.name, b.name));
+        })
 }
 
 /**
@@ -313,10 +422,10 @@ const updateUserProfile = async (userId, req) => {
         .updateUser(params, userArgument)
 }
 
-const getPaymentPost = (req) => {
+const getPaymentSaveArgumentsFromRequest = (req) => {
     const { payed, method, periodStart, interval, intervalCount, amount, currency } = req.body;
 
-    var argMethod, argPeriodStart, argInterval, argIntervalCount, argAmount, argCurrency;
+    var argMethod, argPeriodStart, argPeriodEnd, argInterval, argIntervalCount, argAmount, argCurrency;
 
     switch (payed) {
         case true:
@@ -342,25 +451,28 @@ const getPaymentPost = (req) => {
             if (!/^\d{4}-\d{2}-\d{2}$/.test(periodStart))
                 throw "Period start date must be in format YYYY-MM-DD";
 
-            var periodStartDate = new Date(periodStart);
-
             argPeriodStart = periodStart;
 
-            // Interval
-            switch (interval) {
-                case "year":
-                case "month":
-                    argInterval = interval;
-                    break;
-
-                default:
-                    throw `Invalid interval ${interval}`;
-            }
+            var periodStartAsDate = new Date(argPeriodStart);
 
             // Interval count
             argIntervalCount = parseInt(intervalCount);
             if (isNaN(argIntervalCount) || argIntervalCount <= 0)
                 throw "Invalid interval count";
+
+            // Interval
+            argInterval = interval;
+            switch (interval) {
+                case "year":
+                    argPeriodEnd = utils.getDateString(new Date(periodStartAsDate.setFullYear(periodStartAsDate.getFullYear() + argIntervalCount)));
+                    break;
+                case "month":
+                    argPeriodEnd = utils.getDateString(new Date(periodStartAsDate.setMonth(periodStartAsDate.getMonth() + argIntervalCount)));
+                    break;
+
+                default:
+                    throw `Invalid interval ${interval}`;
+            }
 
             // Amount
             argAmount = parseInt(amount);
@@ -376,7 +488,8 @@ const getPaymentPost = (req) => {
             break;
 
         case false:
-            argPayedUntil = null;
+            argPeriodStart = null;
+            argPeriodEnd = null;
             argMethod = null;
             argAmount = null;
             break;
@@ -385,26 +498,29 @@ const getPaymentPost = (req) => {
             throw "Invalid value for \"payed\"";
     }
 
-    return {
-        method: argMethod,
-        period_start: argPeriodStart,
-        interval: argInterval,
-        interval_count: argIntervalCount,
-        amount: argAmount,
-        currency: argCurrency
-    };
+    return new PaymentSaveArguments(argMethod, argPeriodStart, argPeriodEnd, argInterval, argIntervalCount, argAmount, argCurrency);
 }
 
 /**
- * Manually update the fee payment for a user
+ * Manually update the fee payment for a user, reading arguments from the request body
  * @param {string} flavour
  * @param {number} userId
- * @param {any} req - the request (reading parameters from request body)
+ * @param {any} req - The request
  */
-const adminUpdateUserFee = async (flavour, userId, req) => {
-    var payment;
+const adminUpdateUserFeeFromRequest = async (flavour, userId, req) =>
+{
+    var payment = getPaymentSaveArgumentsFromRequest(req);
 
-    payment = getPaymentPost(req);
+    return adminUpdateUserFee(flavour, userId, payment);
+}
+
+/**
+ * Manually update the fee payment for a user, supplying a PaymentSaveArguments object
+ * @param {string} flavour
+ * @param {number} userId
+* @param {any} payment - A PaymentSaveArguments object
+ */
+const adminUpdateUserFee = async (flavour, userId, payment) => {
 
     let userArgument = {};
     switch (flavour) {
@@ -590,13 +706,24 @@ const exportUsers = async () => {
         })
 }
 
-
 module.exports = {
+    /** A user object suitable to send to the client */
+    UserClientObject,
+    /** Values for a stored payment property in Auth0 */
+    UserPaymentProperty,
+    /** Arguments for saving a payment for a user */
+    PaymentSaveArguments,
     /**
      * Get an Auth0 management client
      * Docs: https://auth0.github.io/node-auth0/module-management.ManagementClient.html
      */
     getManagementClient,
+    /**
+     * Get a user and return it as a UserClientObject
+     * @param {number} userId
+     * @param {boolean} includePayments - If payments should be included in the client object
+     */
+    getUserClientObject,
     /**
      * Check if a user has a specific role.
      * The roles are read from the "roles" property in the users "app_metadata" collection in Auth0.
@@ -612,11 +739,17 @@ module.exports = {
     isUserInCurrentConnection,
     /**
      * Given an Auth0 user, make a UserClientObject object to pass to client
-     * @param {any} user
+     * @param {number} userId
+     * @param {boolean} includePayments - If payments should be included in the client object
      */
-    getUserClientObject,
-    /** A user object suitable to send to the client */
-    UserClientObject,
+    getUser,
+    /**
+     * Get a user and return it as an Auth0 user object
+     * @param {number} userId
+     */
+    getAuth0User,
+    /** Get all users */
+    getUsers,
     /**
      * Update a user's profile information
      * @param {number} userId
@@ -624,12 +757,19 @@ module.exports = {
      */
     updateUserProfile,
     /**
-     * Manually update the fee payment for a user
+     * Manually update the fee payment for a user, supplying a PaymentSaveArguments object
      * @param {string} flavour
      * @param {number} userId
-     * @param {any} req - the request (reading parameters from request body)
+     * @param {any} payment - A PaymentSaveArguments object
      */
     adminUpdateUserFee,
+    /**
+     * Manually update the fee payment for a user, reading arguments from the request body
+     * @param {string} flavour
+     * @param {number} userId
+     * @param {any} req - The request
+     */
+    adminUpdateUserFeeFromRequest,
     /** Export users as Excel file
      * @returns - Excel file content
      */

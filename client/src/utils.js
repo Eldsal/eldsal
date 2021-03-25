@@ -1,5 +1,23 @@
 /* Utility functions used throughout the solution */
 
+/** Flavour value for "Membership fee", used as argument value to specify fee */
+export var fee_flavour_membership = "membfee";
+/** Flavour value for "Housecard fee", used as argument value to specify fee */
+export var fee_flavour_housecard = "housecard";
+
+export function getFeeFlavourName(flavour, upperCaseFirstChar = true) {
+    switch (flavour) {
+        case fee_flavour_membership:
+            return upperCaseFirstChar ? "Membership" : "membership";
+
+        case fee_flavour_housecard:
+            return upperCaseFirstChar ? "House card" : "house card";
+
+        default:
+            return upperCaseFirstChar ? "(Unknown)" : "(unknown)";
+    }
+}
+
 /**
  * Local method for parsing a date from an argument of type date or string
  * @param {date|string} date
@@ -71,3 +89,4 @@ export function formatUtcTimestamp(timestamp) {
 
     return new Intl.DateTimeFormat('sv-SE').format(_date);
 }
+
