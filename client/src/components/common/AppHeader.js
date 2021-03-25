@@ -68,6 +68,9 @@ const AppHeader = (props) => {
                         <NavItem>
                             <NavLink href="/subscription">Subscription</NavLink>
                         </NavItem>
+                        <NavItem>
+                            <NavLink href="/contact">Contact</NavLink>
+                        </NavItem>
                         <NavItem hidden={!isAdmin}>
                             <NavLink href="/admin">Admin</NavLink>
                         </NavItem>

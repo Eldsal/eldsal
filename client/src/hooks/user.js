@@ -38,7 +38,17 @@ export const useUser = () => {
             );
     }
 
-    return { isUserLoading, isUserError, user, isAuthenticated, userInfo, isAdmin, isDeveloper };
+    const userProfileIsValid = () =>
+    {
+        if (!userInfo)
+            return false;
+
+        console.log(userInfo);
+
+        return userInfo.given_name && userInfo.family_name && userInfo.phone_number && userInfo.birth_date && userInfo.address_line_1 && userInfo.postal_code && userInfo.city && userInfo.country;
+    }
+
+    return { isUserLoading, isUserError, user, isAuthenticated, userInfo, isAdmin, isDeveloper, userProfileIsValid };
 };
 
 export default useUser;

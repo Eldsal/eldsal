@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+﻿import React, { useEffect, useState } from "react";
 import { useAuth0, withAuthenticationRequired } from "@auth0/auth0-react";
 import Button from "reactstrap/lib/Button";
 import { loadStripe } from "@stripe/stripe-js";
@@ -104,7 +104,6 @@ const SubscriptionPage = () => {
     useEffect(() => {
         getSyncedUser();
         getSubscriptions();
-        getSyncedUser();
         // eslint-disable-next-line
     }, []);
 
@@ -176,7 +175,7 @@ const SubscriptionPage = () => {
                             <td>{item.amount} {item.currency}</td>
                             <td>{item.interval_count.toString() + " " + (item.interval_count == 1 ? item.interval : item.interval + "s")}</td>
                             <td>{formatUtcTimestamp(item.current_period_start)} - {formatUtcTimestamp(item.current_period_end)}</td>
-                            <td><button className="btn btn-outline-secondary btn-sm" onClick={() => cancelSubscription(feeFlavor, item)} title="Cancel the subscription">Cancel</button></td>
+                            <td><button className="btn btn-outline-secondary btn-sm" onClick={() => cancelSubscription(feeFlavor, item)} title="Cancel the subscription">Cancel  subscription</button></td>
                         </>
                     }
                 </tr>
@@ -283,10 +282,12 @@ return (
     <AppContent>
         <h1>Subscription</h1>
         <p>Here the user may manage the subscriptions for membership fee and house card fee.</p>
+        <p>You must pay the membership fee to be a member of Eldsäl.</p>
+        <p>A house card subscription is optional. With a house card subscription you always have access to the Eldsäl house when it's not booked, can more easily book events in the house and can attend events in the house for free (unless organizer request special fee).</p>
 
         {!showBuyMembfee && !showBuyHouseCard &&
             <>
-                <h5>Your subscriptions</h5>
+                <h5 className="mt-4">Your subscriptions</h5>
 
                 {userSubscriptions && syncedUser
                     ?
