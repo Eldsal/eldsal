@@ -27,6 +27,7 @@ const LoginPage = () => {
                 <h1>
                     Welcome to Eldsäl
                 </h1>
+                <p>{process.env.REACT_APP_AUTH0_DOMAIN}</p>
                 <p className="Login-text">
                     Welcome to the membership site for the Eldsäl association in Göteborg.<br/>
                     Login to manage your membership and payments.
