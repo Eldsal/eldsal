@@ -1,5 +1,5 @@
-const stripe_membfee = require('stripe')(process.env.REACT_APP_STRIPE_PRIVATE_KEY_ELDSAL_ORG);
-const stripe_housecard = require('stripe')(process.env.REACT_APP_STRIPE_PRIVATE_KEY_ELDSAL_AB);
+const stripe_membfee = require('stripe')(process.env.STRIPE_PRIVATE_KEY_ELDSAL_ORG);
+const stripe_housecard = require('stripe')(process.env.STRIPE_PRIVATE_KEY_ELDSAL_AB);
 const utils = require("./utils");
 const auth0 = require("./auth0");
 const { fee_flavour_membership, fee_flavour_housecard } = require('./utils');
