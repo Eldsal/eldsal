@@ -358,13 +358,23 @@ const getUserAppMetaDataFee = (user, paymentProperty, normalizedInterval) => {
     return prop;
 }
 
-/** Get all users (in the current connection) */
+/** Get all users as client objects (in the current connection) */
 const getUsers = async () => {
     return getManagementClient()
         .getUsers()
         .then(users => {
             // Filter out only users from the connection specified in the env file
             return users.filter(user => isUserInCurrentConnection(user)).map(user => getUserClientObject(user)).sort((a, b) => stringCompare(a.name, b.name));
+        })
+}
+
+/** Get all users as Auth0 objects (in the current connection) */
+const getAuth0Users = async () => {
+    return getManagementClient()
+        .getUsers()
+        .then(users => {
+            // Filter out only users from the connection specified in the env file
+            return users.filter(user => isUserInCurrentConnection(user));
         })
 }
 
@@ -748,8 +758,10 @@ module.exports = {
      * @param {number} userId
      */
     getAuth0User,
-    /** Get all users */
+    /** Get all users (as client objects) */
     getUsers,
+    /** Get all users (as Auth0 objects) */
+    getAuth0Users,
     /**
      * Update a user's profile information
      * @param {number} userId

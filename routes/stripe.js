@@ -362,7 +362,7 @@ const getStripeSubscriptions = async () => {
 /** Get all active Stripe subscriptions, and return a list of StripeSubscriptionUserInfo objects  */
 const _getStripeSubscriptions = async () => {
 
-    const users = (await auth0.getManagementClient().getUsers());
+    const users = (await auth0.getAuth0Users());
 
     // List of StripeSubscriptionUserInfo objects
     const userInfoList = users.map(x => new StripeSubscriptionUserInfo(x, x.email));
@@ -674,8 +674,8 @@ const createCheckoutSession = async (flavour, userId, price) => {
             },
         ],
         mode: 'subscription',
-        success_url: 'https://local.eldsal.se/afterpurchase?flavour=' + flavour,
-        cancel_url: 'https://local.eldsal.se/subscription',
+        success_url: 'https://' + process.env.WEB_HOST + '/afterpurchase?flavour=' + flavour,
+        cancel_url: 'https://' + process.env.WEB_HOST + '/subscription',
     };
 
 
