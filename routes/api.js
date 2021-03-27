@@ -5,7 +5,6 @@ const response = require("./response");
 const middleware = require("./middleware");
 const auth0 = require("./auth0");
 const stripe = require("./stripe");
-const google = require("./google");
 
 module.exports = router;
 
