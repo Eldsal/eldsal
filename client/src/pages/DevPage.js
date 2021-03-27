@@ -7,10 +7,12 @@ import { withAuthenticationRequired } from "@auth0/auth0-react";
 import AppContent from "../components/common/AppContent";
 import { useUser } from '../hooks/user';
 import { useUi } from '../hooks/ui';
+import { useApi } from '../hooks/api';
 
 const DevPage = () => {
 
     const { isUserLoading, isDeveloper } = useUser();
+    const { apiGet, apiPatch } = useApi();
 
     const [activeTab, setActiveTab] = useState('home');
 
@@ -21,8 +23,14 @@ const DevPage = () => {
     const { alertModal, confirmModal } = useUi();
 
     const test = () => {
-        console.log("test");
-        alertModal(null, "Test message", "Test title", (button) => alert("Closed: " + button));
+        apiGet(`dev/google-test`)
+            .then(success => {
+                alertModal("success", JSON.stringify(success.data));
+            },
+                error => {
+                    alertModal("error", "Google test failed: " + error);
+                }
+            )
     };
 
     const test2 = () => {

@@ -5,6 +5,7 @@ const response = require("./response");
 const middleware = require("./middleware");
 const auth0 = require("./auth0");
 const stripe = require("./stripe");
+const google = require("./google");
 
 module.exports = router;
 
@@ -366,4 +367,15 @@ router.post('/create-checkout-session', checkJwt, async (req, res) => {
     const sessionId = await stripe.createCheckoutSession(flavour, userId, price);
 
     res.json({ id: sessionId });
+});
+
+/** GOOGLE GROUPS */
+
+router.get('/dev/google-test', checkJwt, checkUserIsDeveloper, async (req, res) => {
+
+    console.log('dev/google-test');
+
+    google.test();
+
+    res.json();
 });
