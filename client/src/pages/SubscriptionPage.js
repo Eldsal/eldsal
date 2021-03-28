@@ -308,7 +308,14 @@ return (
                     </table>
 
                     : <span><FontAwesomeIcon icon="spinner" spin /> Loading...</span>
-                }
+            }
+
+            { syncedUser && !syncedUser.payments.membership.payed &&
+                <div className="alert alert-warning mt-3">
+                    If you have recently created your profile, any existing payments of membership and house card subscriptions may not be displayed here.<br />
+                    We will update your payments shortly. If you have questions about why payments are not showing, please contact <a href={"mailto:" + process.env.REACT_APP_WEBMASTER_EMAIL}>{process.env.REACT_APP_WEBMASTER_EMAIL}</a>.
+                    </div>
+            }
             </>
         }
 

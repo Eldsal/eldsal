@@ -30,11 +30,11 @@ const StartPage = () => {
 
     const displayStatus = () => {
 
-        const addRow = (header, content) => {
+        const addRow = (header, headerLink, content) => {
             return (
                 <Row>
                     <Col xs={4} sm={3} m={2}>
-                        {header}
+                        <a href={headerLink}>{header}</a>
                     </Col>
                     <Col>
                         {content}
@@ -101,9 +101,15 @@ const StartPage = () => {
 
         return (
             <>
-                { addRow("Profile", profile)}
-                { addRow("Membership", membership)}
-                { addRow("House card", houseCard)}
+                { addRow("Profile", "/profile", profile)}
+                { addRow("Membership", "/subscription", membership)}
+                { addRow("House card", "/subscription", houseCard)}
+                { syncedUser && !syncedUser.payments.membership.payed &&
+                    <div className="alert alert-warning mt-3">
+                    If you have recently created your profile, any existing payments of membership and house card subscriptions may not be displayed here.<br/>
+                    We will update your payments shortly. If you have questions about why payments are not showing, please contact <a href={"mailto:" + process.env.REACT_APP_WEBMASTER_EMAIL}>{process.env.REACT_APP_WEBMASTER_EMAIL}</a>.
+                    </div>
+                }
             </>
         );
     }
