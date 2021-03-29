@@ -679,7 +679,7 @@ const createCheckoutSession = async (flavour, userId, price) => {
     };
 
 
-    if (user.app_metadata["stripe_customer_" + flavour]) {
+    if (user.app_metadata && user.app_metadata["stripe_customer_" + flavour]) {
         sessionObj = { ...sessionObj, customer: user.app_metadata["stripe_customer_" + flavour] };
     } else {
         sessionObj = { ...sessionObj, customer_email: user.email };

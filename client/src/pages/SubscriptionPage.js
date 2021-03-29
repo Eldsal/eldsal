@@ -47,7 +47,6 @@ const SubscriptionPage = () => {
                 success => {
                     const data = success.data;
                     if (typeof (data) === "object") {
-                        console.log(success.data);
                         setUserSubscriptions(success.data);
                     }
                     else {
@@ -82,7 +81,6 @@ const SubscriptionPage = () => {
             apiPatch(`cancel-subscription/${userInfo.user_id}/${feeFlavor}/${subscription.subscription_id}`)
                 .then(
                     success => {
-                        console.log("Success");
                         subscription.read_error = true;
                         subscription.read_error_message = "Cancelled";
                         alertModal("success", "Your " + feeName + " subscription is cancelled", "Subscription cancelled");
@@ -190,7 +188,7 @@ const SubscriptionPage = () => {
                     <td>
                         {syncedPayment.payed ?
                             <span className="text-muted">(Manual payment)</span>
-                            : <button className="btn btn-primary btn-sm" onClick={() => buySubscription(feeFlavor)} title="Buy a subscription">Buy</button>}
+                            : <button className="btn btn-primary btn-sm" onClick={() => buySubscription(feeFlavor)} title="Buy a subscription">Show prices</button>}
                     </td>
 
                 </tr>
@@ -198,7 +196,7 @@ const SubscriptionPage = () => {
                 <tr>
                     <td>{feeName}</td>
                     <td colSpan="3" className="text-muted">(None)</td>
-                    <td><button className="btn btn-primary btn-sm" onClick={() => buySubscription(feeFlavor)} title="Buy a subscription">Buy</button></td>
+                    <td><button className="btn btn-primary btn-sm" onClick={() => buySubscription(feeFlavor)} title="Buy a subscription">Show prices</button></td>
                 </tr>);
     }
 

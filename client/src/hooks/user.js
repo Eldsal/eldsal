@@ -43,8 +43,6 @@ export const useUser = () => {
         if (!userInfo)
             return false;
 
-        console.log(userInfo);
-
         return userInfo.given_name && userInfo.family_name && userInfo.phone_number && userInfo.birth_date && userInfo.address_line_1 && userInfo.postal_code && userInfo.city && userInfo.country;
     }
 
