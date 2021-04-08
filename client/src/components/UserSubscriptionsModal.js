@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import ReactModal from "react-modal";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import CommonModal from "./common/CommonModal";
-import { formatUtcTimestamp, getDateFormValue } from '../utils.js';
+import { formatUtcTimestamp, getDateFormValue, formatCurrency } from '../utils.js';
 import {
     Table
 } from 'reactstrap';
@@ -78,7 +78,7 @@ export const UserSubscriptionsModal = ({ user, hideModal }) => {
                             {!item.read_error &&
                                 <>
                                 <td>{item.product_name}{item.price_name ? " (" + item.price_name + ")" : ""}</td>
-                                    <td>{item.amount} {item.currency}</td>
+                                <td>{formatCurrency(item.amount, item.currency)}</td>
                                     <td>{item.interval_count == 1 ? item.interval : item.interval_count.toString() + " " + item.interval + "s"}</td>
                                     <td>{formatUtcTimestamp(item.current_period_start)} - {formatUtcTimestamp(item.current_period_end)}</td>
                                     <td><button className="btn btn-outline-secondary btn-sm" onClick={() => cancelSubscription(feeType, item)} title="Cancel the subscription">Cancel</button></td>

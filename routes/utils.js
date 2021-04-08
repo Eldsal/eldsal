@@ -23,6 +23,18 @@ module.exports = {
         return 0;
     },
 
+    /** Compare numbers, to be used in Array.sort */
+    numericCompare: (a, b, ascending = true) => {
+        if (a < b) {
+            return ascending ? -1 : 1;
+        }
+        if (a > b) {
+            return ascending ? 1 : -1;
+        }
+        // Values are equal
+        return 0;
+    },
+
     /** Get a date string in the format "YYYY-MM-DD" */
     getDateString: (date) => {
         if (date) {

@@ -8,6 +8,7 @@ import AppContent from "../components/common/AppContent";
 import { useUser } from '../hooks/user';
 import AdminUserList from "../components/AdminUserList";
 import AdminSubscriptionList from "../components/AdminSubscriptionList";
+import AdminStripePayoutList from "../components/AdminStripePayoutList";
 import { formatUtcTimestamp } from "../utils";
 
 const AdminPage = () => {
@@ -57,6 +58,14 @@ const AdminPage = () => {
                             Stripe subscriptions
                         </NavLink>
                     </NavItem>
+                    <NavItem>
+                        <NavLink
+                            className={classnames({ active: activeTab === 'stripePayouts' })}
+                            onClick={() => { toggleTab('stripePayouts'); }}
+                        >
+                            Stripe payouts
+                        </NavLink>
+                    </NavItem>
                 </Nav>
                 <TabContent activeTab={activeTab} className="mt-4">
                     <TabPane tabId="home">
@@ -67,6 +76,9 @@ const AdminPage = () => {
                     </TabPane>
                     <TabPane tabId="subscriptions">
                         {activeTab === "subscriptions" && (<AdminSubscriptionList />)}
+                    </TabPane>
+                    <TabPane tabId="stripePayouts">
+                        {activeTab === "stripePayouts" && (<AdminStripePayoutList />)}
                     </TabPane>
                 </TabContent>
             </AppContent >

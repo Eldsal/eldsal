@@ -1,16 +1,13 @@
 ﻿import React, { useEffect, useState } from "react";
 import { useAuth0, withAuthenticationRequired } from "@auth0/auth0-react";
-import Button from "reactstrap/lib/Button";
 import { loadStripe } from "@stripe/stripe-js";
-import Row from "reactstrap/lib/Row";
-import Col from "reactstrap/lib/Col";
 import AppContent from "../components/common/AppContent";
 import { useApi } from '../hooks/api';
-import { useModal } from "react-modal-hook";
 import { formatUtcTimestamp, formatDate, fee_flavour_membership, fee_flavour_housecard, getFeeFlavourName } from '../utils.js';
 import { useUser } from '../hooks/user';
 import { useUi } from '../hooks/ui';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { formatCurrency } from '../utils.js';
 
 const SubscriptionPage = () => {
     const stripePromises = { housecard: loadStripe(process.env.REACT_APP_STRIPE_KEY_ELDSAL_AB), membfee: loadStripe(process.env.REACT_APP_STRIPE_KEY_ELDSAL_ORG) };
@@ -170,7 +167,7 @@ const SubscriptionPage = () => {
                     {!item.read_error &&
                         <>
                             <td>{item.product_name}{item.price_name ? " (" + item.price_name + ")" : ""}</td>
-                            <td>{item.amount} {item.currency}</td>
+                        <td>{formatCurrency(item.amount, item.currency)}</td>
                             <td>{item.interval_count.toString() + " " + (item.interval_count == 1 ? item.interval : item.interval + "s")}</td>
                             <td>{formatUtcTimestamp(item.current_period_start)} - {formatUtcTimestamp(item.current_period_end)}</td>
                             <td><button className="btn btn-outline-secondary btn-sm" onClick={() => cancelSubscription(feeFlavor, item)} title="Cancel the subscription">Cancel  subscription</button></td>
@@ -182,7 +179,7 @@ const SubscriptionPage = () => {
             (syncedPayment && (syncedPayment.payed || syncedPayment.periodEnd) ?
                 <tr className={syncedPayment.payed ? "" : "text-danger"}>
                     <td>{feeName}{syncedPayment.payed ? "" : " (EXPIRED)"}</td>
-                    <td>{syncedPayment.amount} {syncedPayment.currency}</td>
+                    <td>{formatCurrency(syncedPayment.amount, syncedPayment.currency)}</td>
                     <td>{syncedPayment.intervalCount.toString() + " " + (syncedPayment.intervalCount == 1 ? syncedPayment.interval : syncedPayment.interval + "s")}</td>
                     <td>{formatDate(syncedPayment.periodStart)} - {formatDate(syncedPayment.periodEnd)}</td>
                     <td>
@@ -261,7 +258,7 @@ const SubscriptionPage = () => {
                     {prices.map((price) =>
                         <tr key={price.id}>
                             <td>{getProduct(price.product, feeFlavor).name}{price.nickname ? ", " + price.nickname : ""}</td>
-                            <td>{price.unit_amount / 100} {price.currency.toUpperCase()} / {price.recurring.interval_count == 1 ? price.recurring.interval : price.recurring.interval_count.toString() + " " + price.recurring.interval + "s"}</td>
+                            <td>{formatCurrency(price.unit_amount / 100, price.currency.toUpperCase())} / {price.recurring.interval_count == 1 ? price.recurring.interval : price.recurring.interval_count.toString() + " " + price.recurring.interval + "s"}</td>
                             <td>
                                 <button
                                     type="button"
@@ -314,6 +311,13 @@ return (
                     We will update your payments shortly. If you have questions about why payments are not showing, please contact <a href={"mailto:" + process.env.REACT_APP_WEBMASTER_EMAIL}>{process.env.REACT_APP_WEBMASTER_EMAIL}</a>.
                     </div>
             }
+
+            {syncedUser &&
+                <div className="alert alert-info mt-3">
+                    If you want to pay for membership or house card from a company, or for other reasons want to handle payments with manual invoices, please contact <a href="mailto:ekonomi@eldsal.se">ekonomi@eldsal.se</a>
+                </div>
+            }
+
             </>
         }
 

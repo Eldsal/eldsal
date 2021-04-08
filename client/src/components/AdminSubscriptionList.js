@@ -7,7 +7,7 @@ import {
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { useApi } from '../hooks/api';
 import { UserSubscriptionsModal } from './UserSubscriptionsModal';
-import { formatDate } from '../utils.js';
+import { formatDate, formatCurrency } from '../utils.js';
 
 export const AdminSubscriptionList = ({ x }) => {
 
@@ -56,7 +56,7 @@ export const AdminSubscriptionList = ({ x }) => {
 
         var interval = subscription.interval_count == 1 ? subscription.interval : subscription.interval_count + " " + subscription.interval + "s";
 
-        var result = <span>{subscription.amount} {subscription.currency}/{interval}{includeProductName ? <small> ({subscription.product_name})</small> : null}</span>;
+        var result = <span>{formatCurrency(subscription.amount, subscription.currency, false)}/{interval}{includeProductName ? <small> ({subscription.product_name})</small> : null}</span>;
 
         return result;
     }

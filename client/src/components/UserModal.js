@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import ReactModal from "react-modal";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import CommonModal from "./common/CommonModal";
-import { formatDate, getDateFormValue } from '../utils.js';
+import { formatDate, getDateFormValue, formatCurrency } from '../utils.js';
 import { useApi } from '../hooks/api';
 import { useUi } from '../hooks/ui';
 import Row from "reactstrap/lib/Row";
@@ -78,15 +78,6 @@ export const UserModal = ({ user, hideModal }) => {
         var isError = paymentProperty.error;
         var errorMessage = paymentProperty.errorMessage;
 
-        var formattedAmount;
-
-        if (amount === undefined || amount === null || isNaN(amount) || amount < 0) {
-            formattedAmount = "-";
-        }
-        else {
-            formattedAmount = amount.toString();
-        }
-
         var formattedInterval;
         if (interval && intervalCount > 0) {
             formattedInterval = intervalCount.toString() + " " + interval + (intervalCount === 1 ? "" : "s");
@@ -112,7 +103,7 @@ export const UserModal = ({ user, hideModal }) => {
                     </tr>
                     <tr>
                         <td>Amount</td>
-                        <td>{formattedAmount} {currency} &nbsp; <small>({normalizedAmount} {currency}/{normalizedInterval})</small></td>
+                        <td>{formatCurrency(amount, currency)} &nbsp; <small>({formatCurrency(normalizedAmount, currency)}/{normalizedInterval})</small></td>
                     </tr>
                 </tbody>
             </table>

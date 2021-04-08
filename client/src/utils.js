@@ -78,7 +78,7 @@ export function getDateFormValue(date) {
  * Format a timestamp (UNIX epoch) for output, using Swedish notation YYYY-MM-DD 
  * @param {date|string} date
  */
-export function formatUtcTimestamp(timestamp) {
+export function formatUtcTimestamp(timestamp, includeTime = false) {
     if (timestamp === null)
         return "";
 
@@ -87,6 +87,38 @@ export function formatUtcTimestamp(timestamp) {
     if (isNaN(_date))
         return "(Invalid date)";
 
-    return new Intl.DateTimeFormat('sv-SE').format(_date);
+    var options = {
+        dateStyle: "short"
+    };
+
+    if (includeTime) {
+        options.timeStyle = "short";
+    }
+
+    return new Intl.DateTimeFormat('sv-SE', options).format(_date);
+}
+
+/**
+ * Format a currency (e.g. "100.50 SEK")
+ * @param {any} amount
+ * @param {any} currency
+ * @param {any} alwaysIncludeCents
+ */
+export function formatCurrency(amount, currency, alwaysIncludeCents = false) {
+
+    if (amount === null || amount === undefined) {
+        return "-";
+    }
+
+    const includeCents = alwaysIncludeCents || amount !== Math.round(amount);
+
+    const _currency = currency ? currency.toUpperCase() : "";
+
+    var formatter = new Intl.NumberFormat('sv-SE', {
+        minimumFractionDigits: includeCents ? 2 : 0,
+        maximumFractionDigits: includeCents ? 2 : 0,
+    });
+
+    return formatter.format(amount) + " " + _currency;
 }
 
