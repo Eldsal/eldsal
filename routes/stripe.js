@@ -4,7 +4,7 @@ const utils = require("./utils");
 const auth0 = require("./auth0");
 const { fee_flavour_membership, fee_flavour_housecard } = require('./utils');
 
-const { stringCompare, getDateString, getNormalizedAmount } = utils;
+const { stringCompare, numericCompare, getDateString, getNormalizedAmount } = utils;
 
 /*
  * Stripe methods
@@ -354,7 +354,7 @@ const getStripeSubscriptions = async () => {
 
     const userInfoList = await _getStripeSubscriptions();
 
-    const result = userInfoList.map(x => new UserStripeSubscriptionResultObject(x));
+    const result = userInfoList.filter(x => x.membfee_subscriptions.length > 0 || x.housecard_subscriptions.length > 0).map(x => new UserStripeSubscriptionResultObject(x));
 
     return result.sort((a, b) => stringCompare(a.user_name, b.user_name));
 }
@@ -632,8 +632,8 @@ const getPrices = async (flavour) => {
 
     const stripeClient = getStripeClientForFlavour(flavour);
 
-    const products = (await stripeClient.products.list({ limit: 100 })).data;
-    const prices = (await stripeClient.prices.list({ limit: 100 })).data;
+    const products = (await stripeClient.products.list({ active: true, limit: 100 })).data;
+    const prices = (await stripeClient.prices.list({ active: true, limit: 100 })).data;
 
     return { prices, products };
 }
@@ -694,6 +694,209 @@ const createCheckoutSession = async (flavour, userId, price) => {
     return session.id;
 }
 
+/** PAYOUTS */
+
+class StripePayoutResultObject {
+    constructor(flavour, payout) {
+        this.flavour = flavour;
+        this.payout_id = payout.id;
+        this.arrival_date = payout.arrival_date;
+        this.created = payout.created;
+        this.amount = payout.amount == null ? null : payout.amount / 100; // Amount received in öre
+        this.currency = payout.currency == null ? null : payout.currency.toUpperCase();
+        this.failure_code = payout.failure_code;
+        this.failure_message = payout.failure_message;
+   }
+}
+
+/** Get all Stripe payouts
+ * @returns - A list of StripePaymentResultObject objects
+ */
+const getStripePayouts = async () => {
+
+    const result = [];
+
+    for (var p of await _getStripePayouts(stripe_membfee)) {
+        result.push(new StripePayoutResultObject(fee_flavour_membership, p));
+    }
+
+    for (var p of await _getStripePayouts(stripe_housecard)) {
+        result.push(new StripePayoutResultObject(fee_flavour_housecard, p));
+    }
+
+    return result.sort((a, b) => numericCompare(a.arrival_date, b.arrival_date,false));
+}
+
+const _getStripePayouts = async (stripeClient) => {
+
+    return await readPagedStripeData((args) => stripeClient.payouts.list(args));
+}
+
+class StripePayoutTransactionListResultObject {
+    constructor(flavour, chargesAmount, chargesCurrency, feesAmount, feesCurrency, transactions) {
+        this.flavour = flavour;
+        this.charges_amount = chargesAmount;
+        this.charges_currency = chargesCurrency;
+        this.fees_amount = feesAmount;
+        this.fees_currency = feesCurrency;
+        this.transactions = transactions;
+    }
+}
+
+class StripePayoutTransactionResultObject {
+    constructor(flavour, transaction) {
+        this.flavour = flavour;
+        this.transaction_id = transaction.id;
+        this.arrival_date = transaction.arrival_date;
+        this.created = transaction.created;
+        this.amount = transaction.amount == null ? 0 : transaction.amount / 100; // Amount received in öre
+        this.currency = transaction.currency == null ? null : transaction.currency.toUpperCase();
+        this.description = transaction.description;
+        this.type = transaction.type;
+        this.fee_amount = transaction.fee == null ? 0 : transaction.fee / 100; // Amount received in öre
+        this.fee_currency = this.currency;
+
+        this.fees = [];
+
+        if (transaction.fee_details) {
+
+            for (var fee of transaction.fee_details) {
+
+                var _fee = new StripePayoutTransactionFeeResultObject(fee);
+
+                this.fee_currency = _fee.currency; // Store the currency on main object (expecting all fees to be in the same currency)
+
+                this.fees.push(_fee);
+            }
+        }
+
+        // Source and user_id is popuated by _makeStripePayoutTransactionResultObject
+        this.source = null;
+        this.user_id = null;
+    }
+}
+
+const _makeStripePayoutTransactionResultObject = async (flavour, transaction, userByStripeCustomerId) => {
+
+    var result = new StripePayoutTransactionResultObject(flavour, transaction);
+
+    if (transaction.source) {
+
+        var billingEmail = null;
+        if (transaction.source.billing_details) {
+            billingEmail = transaction.source.billing_details.email;
+        }
+        
+        if (transaction.source.customer) {
+
+            var user = userByStripeCustomerId[transaction.source.customer];
+
+            var _email = null;
+            var sourceName = null;
+
+            if (user != null) {
+                result.user_id = user.user_id;
+                _email = user.email;
+                if (user.name) {
+                    sourceName = user.name + " (" + user.email + ")";
+                }
+                else {
+                    sourceName = user.email;
+                }
+            }
+            else {
+                var customer = await getStripeClientForFlavour(flavour).customers.retrieve(transaction.source.customer);
+                console.log(customer);
+                var customerEmail;
+                if (customer == null) {
+                    sourceName = "(Stripe customer " + transaction.source.customer + ")";
+                }
+                else {
+                    _email = customer.email;
+                    sourceName = "(Stripe customer " + customer.email + ")";
+                }
+            }
+
+            result.source = sourceName;
+
+            if (billingEmail && _email !== billingEmail) {
+                result.source += " (billing email: " + billingEmail + ")";
+            }
+
+        }
+    }
+
+    return result;
+}
+
+class StripePayoutTransactionFeeResultObject {
+    constructor(fee) {
+        this.amount = fee.amount == null ? null : fee.amount / 100; // Amount received in öre
+        this.currency = fee.currency == null ? null : fee.currency.toUpperCase();
+        this.type = fee.type;
+    }
+}
+
+/**
+ * Get transactions included in a payout
+ * @param {any} flavour
+ * @param {any} payoutId
+ */
+const getStripePayoutTransactions = async (flavour, payoutId) => {
+    const stripeClient = getStripeClientForFlavour(flavour);
+    const transactions = await _getStripePayoutTransactions(stripeClient, payoutId);
+
+    const allUsers = await auth0.getAuth0Users();
+
+    const userByStripeCustomerId = {};
+    for (var u of allUsers) {
+        var stripeCustomerId = getStripeCustomerForUser(u, flavour);
+        if (stripeCustomerId) {
+            userByStripeCustomerId[stripeCustomerId] = u;
+        }
+    }
+
+    const _transactions = [];
+    let chargesAmount = 0, chargesCurrency = null, feesAmount = 0, feesCurrency = null;
+
+    for (var t of transactions.filter(x => x.type != "payout")) {
+        var _t = await _makeStripePayoutTransactionResultObject(flavour, t, userByStripeCustomerId);
+        _transactions.push(_t);
+
+        chargesAmount += _t.amount;
+
+        if (chargesCurrency === null) {
+            chargesCurrency = _t.currency;
+        }
+        else if (_t.amount !== 0 && chargesCurrency !== _t.currency) {
+            chargesCurrency = "";
+        }
+
+        feesAmount += _t.fee_amount;
+
+        if (feesCurrency === null) {
+            feesCurrency = _t.fee_currency;
+        }
+        else if (_t.fee_amount !== 0 && feesCurrency !== _t.fee_currency) {
+            feesCurrency = "";
+        }
+
+    }
+
+
+    return new StripePayoutTransactionListResultObject(flavour, chargesAmount, chargesCurrency, feesAmount, feesCurrency, _transactions);
+}
+
+const _getStripePayoutTransactions = async (stripeClient, payoutId) => {
+
+    const mainArgs = {
+        payout: payoutId,
+        expand: ['data.source']
+    };
+
+    return await readPagedStripeData((args) => stripeClient.balanceTransactions.list(args), mainArgs);
+}
+
 module.exports = {
     /**
     * A user (Auth0 user or "dummy" user if the Stripe user is not connected to an Auth0 user), with information about all Stripe subscriptions, suitable to pass to client
@@ -728,4 +931,14 @@ module.exports = {
     getPrices,
     syncUser,
     syncUsers,
+    /** Get all Stripe payouts
+     * @returns - A list of StripePayoutResultObject objects
+     */
+    getStripePayouts,
+    /**
+     * Get transactions included in a payout
+     * @param {any} flavour
+     * @param {any} payoutId
+     */
+    getStripePayoutTransactions
 }

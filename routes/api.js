@@ -368,6 +368,27 @@ router.post('/create-checkout-session', checkJwt, async (req, res) => {
     res.json({ id: sessionId });
 });
 
+router.get('/admin/get-stripe-payouts', checkJwt, checkUserIsAdmin, async (req, res) => {
+
+    console.log('admin/get-stripe-payouts');
+
+    stripe.getStripePayouts()
+        .then(data => res.json(data));
+});
+
+router.get('/admin/get-stripe-payout-transactions', checkJwt, checkUserIsAdmin, async (req, res) => {
+
+    console.log('admin/get-stripe-payouts');
+
+    const flavour = req.query.flavour;
+    const payout = req.query.payout;
+
+    console.log(payout);
+
+    stripe.getStripePayoutTransactions(flavour, payout)
+        .then(data => res.json(data));
+});
+
 /** GOOGLE GROUPS */
 
 router.get('/dev/google-test', checkJwt, checkUserIsDeveloper, async (req, res) => {
