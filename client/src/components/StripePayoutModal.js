@@ -40,6 +40,13 @@ export const StripePayoutModal = ({ payout, hideModal }) => {
 
     }, [payout]);
 
+    const displayAmount = (amount, currency, isCostExpected = false) =>
+    {
+        var isCost = (isCostExpected && amount <= 0) || (!isCostExpected && amount < 0);
+
+        return <span className={isCost ? "text-danger" : "text-success"}>{formatCurrency(amount, currency, true)}</span>;
+    }
+
     return (
         <CommonModal hideModal={hideModal}>
             <h3>Stripe payout</h3>
@@ -135,8 +142,8 @@ export const StripePayoutModal = ({ payout, hideModal }) => {
                                                 <td>{item.type}</td>
                                                 <td>{item.description}</td>
                                                 <td>{item.source}</td>
-                                                <td className="text-right pr-3">{formatCurrency(item.amount, item.currency, true)}</td>
-                                                <td className="text-right">{item.fee_amount === null || item.fee_amount === 0 ? <span className="text-muted">(None)</span> : formatCurrency(item.fee_amount, item.fee_currency, true)}{item.fee}</td>
+                                                <td className="text-right pr-3">{displayAmount(item.amount, item.currency)}</td>
+                                                <td className="text-right">{item.fee_amount === null || item.fee_amount === 0 ? <span className="text-muted">(None)</span> : displayAmount(-item.fee_amount, item.fee_currency, true)}</td>
                                             </tr>
                                         ))
                                         :
@@ -159,16 +166,16 @@ export const StripePayoutModal = ({ payout, hideModal }) => {
                                 <tbody>
                                     <tr>
                                         <td><strong>Total payments</strong></td>
-                                    <td className="text-right">{formatCurrency(transactions.charges_amount, transactions.charges_currency, true)}</td>
+                                    <td className="text-right">{displayAmount(transactions.charges_amount, transactions.charges_currency)}</td>
                                     </tr>
                                     <tr>
                                         <td><strong>Total fees</strong></td>
-                                    <td className="text-right">{formatCurrency(-transactions.fees_amount, transactions.fees_currency, true)}</td>
+                                    <td className="text-right">{displayAmount(-transactions.fees_amount, transactions.fees_currency, true)}</td>
                                     </tr>
                                     <tr>
                                         <td><strong>Balance</strong></td>
                                     <td className="text-right">{transactions.charges_currency == transactions.fees_currency
-                                        ? formatCurrency(transactions.charges_amount - transactions.fees_amount, transactions.charges_currency, true)
+                                        ? displayAmount(transactions.charges_amount - transactions.fees_amount, transactions.charges_currency)
                                             : <span className="text-danger">Different currencies</span>
                                         }</td>
                                     </tr>

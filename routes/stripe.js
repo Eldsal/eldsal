@@ -806,8 +806,6 @@ const _makeStripePayoutTransactionResultObject = async (flavour, transaction, us
             }
             else {
                 var customer = await getStripeClientForFlavour(flavour).customers.retrieve(transaction.source.customer);
-                console.log(customer);
-                var customerEmail;
                 if (customer == null) {
                     sourceName = "(Stripe customer " + transaction.source.customer + ")";
                 }
@@ -859,28 +857,42 @@ const getStripePayoutTransactions = async (flavour, payoutId) => {
     const _transactions = [];
     let chargesAmount = 0, chargesCurrency = null, feesAmount = 0, feesCurrency = null;
 
+    const addCharge = (amount, currency) => {
+        chargesAmount += amount;
+
+        if (chargesCurrency === null) {
+            chargesCurrency = currency;
+        }
+        else if (amount !== 0 && chargesCurrency !== currency) {
+            chargesCurrency = "";
+        }
+    }
+
+    const addFee = (amount, currency) => {
+        feesAmount += amount;
+
+        if (feesCurrency === null) {
+            feesCurrency = currency;
+        }
+        else if (amount !== 0 && feesCurrency !== currency) {
+            feesCurrency = "";
+        }
+    }
+
     for (var t of transactions.filter(x => x.type != "payout")) {
         var _t = await _makeStripePayoutTransactionResultObject(flavour, t, userByStripeCustomerId);
         _transactions.push(_t);
 
-        chargesAmount += _t.amount;
-
-        if (chargesCurrency === null) {
-            chargesCurrency = _t.currency;
+        if (_t.amount >= 0) {
+            addCharge(_t.amount, _t.currency);
         }
-        else if (_t.amount !== 0 && chargesCurrency !== _t.currency) {
-            chargesCurrency = "";
+        else {
+            addFee(_t.amount, _t.currency);
         }
 
-        feesAmount += _t.fee_amount;
-
-        if (feesCurrency === null) {
-            feesCurrency = _t.fee_currency;
+        if (_t.fee_amount !== 0) {
+            addFee(_t.fee_amount, _t.fee_currency);
         }
-        else if (_t.fee_amount !== 0 && feesCurrency !== _t.fee_currency) {
-            feesCurrency = "";
-        }
-
     }
 
 
