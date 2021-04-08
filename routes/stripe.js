@@ -887,7 +887,7 @@ const getStripePayoutTransactions = async (flavour, payoutId) => {
             addCharge(_t.amount, _t.currency);
         }
         else {
-            addFee(_t.amount, _t.currency);
+            addFee(-_t.amount, _t.currency);
         }
 
         if (_t.fee_amount !== 0) {
