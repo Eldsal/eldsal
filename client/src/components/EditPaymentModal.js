@@ -13,7 +13,7 @@ export const EditPaymentModal = ({ payment, apiUrl, onSave, hideModal }) => {
 
     const { apiGet, apiPatch, apiGetErrorMessage } = useApi();
 
-    const [payed, setPayed] = useState(false);
+    const [paid, setPaid] = useState(false);
     const [method, setMethod] = useState("");
     const [periodStart, setPeriodStart] = useState();
     const [interval, setInterval] = useState();
@@ -35,7 +35,7 @@ export const EditPaymentModal = ({ payment, apiUrl, onSave, hideModal }) => {
     const _onSave = async () => {
 
         var args = {
-            payed: payed,
+            paid: paid,
             method: method,
             periodStart: periodStart,
             interval: interval,
@@ -78,7 +78,7 @@ export const EditPaymentModal = ({ payment, apiUrl, onSave, hideModal }) => {
         setSaving(false);
         setSaveError(false);
         if (payment) {
-            setPayed(payment.payed);
+            setPaid(payment.paid);
             setMethod(payment.method ? payment.method : "manual");
             setPeriodStart(undefIfNull(payment.periodStart));
             setInterval(payment.interval ? payment.interval : payment.normalizedInterval);
@@ -87,7 +87,7 @@ export const EditPaymentModal = ({ payment, apiUrl, onSave, hideModal }) => {
             setCurrency(payment.currency ? payment.currency : "SEK" );
         }
         else {
-            setPayed(false);
+            setPaid(false);
             setMethod(undefined);
             setPeriodStart(undefined);
             setInterval(undefined);
@@ -104,10 +104,10 @@ export const EditPaymentModal = ({ payment, apiUrl, onSave, hideModal }) => {
             {payment ?
                 <>
                     <div className="form-check">
-                        <input type="checkbox" className="form-check-input" id="edit-payment-payed" checked={payed} onChange={(evt) => setPayed(evt.target.checked)} />
-                        <label className="form-check-label" htmlFor="edit-payment-payed">Has payed</label>
+                        <input type="checkbox" className="form-check-input" id="edit-payment-paid" checked={paid} onChange={(evt) => setPaid(evt.target.checked)} />
+                        <label className="form-check-label" htmlFor="edit-payment-paid">Has paid</label>
                     </div>
-                    {payed &&
+                    {paid &&
                         <>
                             <div className="form-group">
                                 <label htmlFor="edit-payment-method">Method</label>

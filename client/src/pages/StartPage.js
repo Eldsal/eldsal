@@ -62,17 +62,17 @@ const StartPage = () => {
         if (!syncedUser) {
             membership = <span><FontAwesomeIcon icon="spinner" spin /> Loading...</span>;
         }
-        else if (syncedUser.payments.membership.payed) {
+        else if (syncedUser.payments.membership.paid) {
             membership =
                 <>
-                    <span className="text-success">Payed</span>
+                    <span className="text-success">Paid</span>
                     <small className="ml-2">(until {syncedUser.payments.membership.periodEnd})</small>
                 </>;
         }
         else {
             membership =
                 <>
-                    <span className="text-danger">Not payed!</span>
+                    <span className="text-danger">Not paid!</span>
                     {syncedUser.payments.membership.periodEnd ? <small className="ml-2 text-danger">(Expired {syncedUser.payments.membership.periodEnd})</small> : ""}
                     <a className="ml-2" href="/subscription">Fix</a>
                 </>
@@ -82,11 +82,11 @@ const StartPage = () => {
         if (!syncedUser) {
             houseCard = <span><FontAwesomeIcon icon="spinner" spin /> Loading...</span>;
         }
-        else if (syncedUser.payments.housecard.payed) {
+        else if (syncedUser.payments.housecard.paid) {
 
             houseCard =
                 <>
-                    <span className="text-success">Payed</span>
+                    <span className="text-success">Paid</span>
                     <small className="ml-2">(until {syncedUser.payments.housecard.periodEnd})</small>
                 </>;
         }
@@ -104,7 +104,7 @@ const StartPage = () => {
                 { addRow("Profile", "/profile", profile)}
                 { addRow("Membership", "/subscription", membership)}
                 { addRow("House card", "/subscription", houseCard)}
-                { syncedUser && !syncedUser.payments.membership.payed &&
+                { syncedUser && !syncedUser.payments.membership.paid &&
                     <div className="alert alert-warning mt-3">
                     If you have recently created your profile, any existing payments of membership and house card subscriptions may not be displayed here.<br/>
                     We will update your payments shortly. If you have questions about why payments are not showing, please contact <a href={"mailto:" + process.env.REACT_APP_WEBMASTER_EMAIL}>{process.env.REACT_APP_WEBMASTER_EMAIL}</a>.

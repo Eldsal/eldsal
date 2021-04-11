@@ -509,14 +509,14 @@ const _syncSubscriptions = async (userInfo) => {
 }
 
 const shouldUpdatePayment = (dbPayment, newPayment) => {
-    if (!dbPayment.payed) {
-        // The existing payment in DB is unpayed
-        if (newPayment.payed) {
-            // The new payment is payed - update
+    if (!dbPayment.paid) {
+        // The existing payment in DB is unpaid
+        if (newPayment.paid) {
+            // The new payment is paid - update
             return true;
         }
         else {
-            // The new payment is also unpayed
+            // The new payment is also unpaid
             // If a period end is stored in DB (and no newer period end is found on the new payment), keep it, else update (if the period end differs from the stored one)
             if (dbPayment.periodEnd && (!newPayment.periodEnd || dbPayment.periodEnd >= newPayment.periodEnd))
                 return false;
@@ -525,20 +525,20 @@ const shouldUpdatePayment = (dbPayment, newPayment) => {
         }
     }
     else {
-        // The existing payment in DB is payed
+        // The existing payment in DB is paid
         if (dbPayment.method == "stripe") {
             // The existing database payment is a Stripe payment - update if different
             return !dbPayment.isEqualTo(newPayment);
         }
         else {
             // The existing payment is not a Stripe payment
-            if (newPayment.payed) {
-                // The new payment is payed
+            if (newPayment.paid) {
+                // The new payment is paid
                 // Update if the new period end is later than the existing period end
                 return newPayment.periodEnd > dbPayment.periodEnd;
             }
             else {
-                // The new payment is unpayed - don't update
+                // The new payment is unpaid - don't update
                 return false;
             }
         }

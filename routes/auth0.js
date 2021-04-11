@@ -61,7 +61,7 @@ class UserClientObject {
 }
 
 class UserPaymentProperty {
-    constructor(payed,
+    constructor(paid,
         periodStart,
         periodEnd,
         interval,
@@ -71,7 +71,7 @@ class UserPaymentProperty {
         currency,
         error = false,
         errorMessage = null) {
-        this.payed = payed;
+        this.paid = paid;
         this.periodStart = periodStart;
         this.periodEnd = periodEnd;
         this.interval = interval;
@@ -130,7 +130,7 @@ class UserPaymentProperty {
                 && this.errorMessage === payment.errorMessage;
         }
 
-        return this.payed === payment.payed
+        return this.paid === payment.paid
             && this.periodStart === payment.periodStart
             && this.periodEnd === payment.periodEnd
             && this.interval === payment.interval
@@ -236,7 +236,7 @@ const getUserClientObject = (user, includePayments = true) => {
  * Get a property object containing payment information (based on properties set in a user's app_metadata object).
  * The result object has this structure:
  * {
- *  payed: boolean,
+ *  paid: boolean,
  *  periodStart: date,
  *  periodEnd: date,
  *  interval: string ("month" or "year"),
@@ -251,14 +251,10 @@ const getUserClientObject = (user, includePayments = true) => {
  *  errorMessage: string
  * }
  * @param {Auth0User} user
- * @param {string} payedUntilProperty
- * @param {string} methodProperty
- * @param {string} amountProperty
- * @param {string} amountPeriodProperty
  */
 const getUserAppMetaDataFee = (user, paymentProperty, normalizedInterval) => {
 
-    var hasPayed = false;
+    var hasPaid = false;
     var periodStart = null; // String, no time
     var periodEnd = null; // String, no time
     var interval = null; // String, no time
@@ -287,32 +283,32 @@ const getUserAppMetaDataFee = (user, paymentProperty, normalizedInterval) => {
             var periodEndDate = new Date(periodEnd);
 
             if (!periodStartDate || isNaN(periodStartDate.getTime())) {
-                hasPayed = false;
+                hasPaid = false;
                 isError = true;
                 errorMessage = 'The stored period start date has an invalid format';
             }
             else if (!periodEndDate || isNaN(periodEndDate.getTime())) {
-                hasPayed = false;
+                hasPaid = false;
                 isError = true;
                 errorMessage = 'The stored period end date has an invalid format';
             }
             else if (interval != "year" && interval != "month") {
-                hasPayed = false;
+                hasPaid = false;
                 isError = true;
                 errorMessage = 'The stored interval has an invalid format';
             }
             else if (isNaN(intervalCount) || intervalCount <= 0) {
-                hasPayed = false;
+                hasPaid = false;
                 isError = true;
                 errorMessage = 'The stored interval count has an invalid format';
             }
             else if (isNaN(amount) || amount < 0) {
-                hasPayed = false;
+                hasPaid = false;
                 isError = true;
                 errorMessage = 'The stored amount has an invalid format';
             }
             else if (!currency) {
-                hasPayed = false;
+                hasPaid = false;
                 isError = true;
                 errorMessage = 'No currency is stored';
             }
@@ -321,7 +317,7 @@ const getUserAppMetaDataFee = (user, paymentProperty, normalizedInterval) => {
                 var now = new Date();
                 var today = new Date(now.getUTCFullYear(), now.getMonth(), now.getDate()); // Get current date, without time
 
-                hasPayed = periodEndDate >= today;
+                hasPaid = periodEndDate >= today;
 
                 // Normalize amount
                 normalizedAmount = getNormalizedAmount(normalizedInterval, amount, interval, intervalCount);
@@ -352,7 +348,7 @@ const getUserAppMetaDataFee = (user, paymentProperty, normalizedInterval) => {
         }
     }
 
-    var prop = new UserPaymentProperty(hasPayed, periodStart, periodEnd, interval, intervalCount, method, amount, currency, isError, errorMessage);
+    var prop = new UserPaymentProperty(hasPaid, periodStart, periodEnd, interval, intervalCount, method, amount, currency, isError, errorMessage);
     prop.setNormalizedAmount(normalizedInterval);
 
     return prop;
@@ -433,11 +429,11 @@ const updateUserProfile = async (userId, req) => {
 }
 
 const getPaymentSaveArgumentsFromRequest = (req) => {
-    const { payed, method, periodStart, interval, intervalCount, amount, currency } = req.body;
+    const { paid, method, periodStart, interval, intervalCount, amount, currency } = req.body;
 
     var argMethod, argPeriodStart, argPeriodEnd, argInterval, argIntervalCount, argAmount, argCurrency;
 
-    switch (payed) {
+    switch (paid) {
         case true:
 
             // Method
@@ -505,7 +501,7 @@ const getPaymentSaveArgumentsFromRequest = (req) => {
             break;
 
         default:
-            throw "Invalid value for \"payed\"";
+            throw "Invalid value for \"paid\"";
     }
 
     return new PaymentSaveArguments(argMethod, argPeriodStart, argPeriodEnd, argInterval, argIntervalCount, argAmount, argCurrency);
@@ -637,8 +633,8 @@ const exportUsers = async () => {
                     value: 'country'
                 },
                 {
-                    label: 'MS payed',
-                    value: (row) => row.payments.membership.payed ? "Yes" : "No"
+                    label: 'MS paid',
+                    value: (row) => row.payments.membership.paid ? "Yes" : "No"
                 },
                 {
                     label: 'MS period start',
@@ -669,8 +665,8 @@ const exportUsers = async () => {
                     value: 'payments.membership.methodName'
                 },
                 {
-                    label: 'HC payed',
-                    value: (row) => row.payments.housecard.payed ? "Yes" : "No"
+                    label: 'HC paid',
+                    value: (row) => row.payments.housecard.paid ? "Yes" : "No"
                 },
                 {
                     label: 'HC period start',

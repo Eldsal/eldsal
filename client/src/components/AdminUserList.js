@@ -39,7 +39,7 @@ export const AdminUserList = () => {
 
     const formatFee = (paymentProperty) => {
 
-        var hasPayed = paymentProperty.payed;
+        var hasPaid = paymentProperty.paid;
         var periodStartDate = paymentProperty.periodStart ? new Date(paymentProperty.periodStart) : null;
         var periodEndDate = paymentProperty.periodEnd ? new Date(paymentProperty.periodEnd) : null;
         var isError = paymentProperty.error;
@@ -49,11 +49,11 @@ export const AdminUserList = () => {
             return <span className="text-danger">ERROR: {errorMessage}</span>;
         }
         else {
-            if (hasPayed) {
-                return <span><span className="text-success">Payed</span><small> (until {formatDate(periodEndDate)})</small></span>;
+            if (hasPaid) {
+                return <span><span className="text-success">Paid</span><small> (until {formatDate(periodEndDate)})</small></span>;
             }
             else {
-                return <span><span className="text-danger">Not payed</span><small>{periodEndDate ? " (expired " + formatDate(periodEndDate) + ")" : ""}</small></span>;
+                return <span><span className="text-danger">Not paid</span><small>{periodEndDate ? " (expired " + formatDate(periodEndDate) + ")" : ""}</small></span>;
             }
         }
     }
