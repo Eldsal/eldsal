@@ -201,9 +201,9 @@ router.patch('/admin/sync-user/:userId', checkJwt, checkUserIsAdmin, async funct
 
 /* Update membership fee payment for user
  * Argument object:
- *  payed: boolean
+ *  paid: boolean
  *  method: string ("manual" | "stripe")
- *  payedUntil: date (YYYY-MM-DD)
+ *  paidUntil: date (YYYY-MM-DD)
  *  amount: number (yearly amount)
  **/
 router.patch('/admin/update-user-membership/:userId', checkJwt, checkUserIsAdmin, async function (req, res) {
@@ -226,10 +226,10 @@ router.patch('/admin/update-user-membership/:userId', checkJwt, checkUserIsAdmin
 
 /* Update housecard fee payment for user
  * Argument object:
- *  payed: boolean
+ *  paid: boolean
  *  method: string ("manual" | "stripe")
- *  payedUntil: date (YYYY-MM-DD)
- *  amount: number (monthly amount, regardless of the period actually payed)
+ *  paidUntil: date (YYYY-MM-DD)
+ *  amount: number (monthly amount, regardless of the period actually paid)
  **/
 router.patch('/admin/update-user-housecard/:userId', checkJwt, checkUserIsAdmin, async function (req, res) {
 

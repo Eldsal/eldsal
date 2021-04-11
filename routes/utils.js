@@ -45,7 +45,7 @@ module.exports = {
         }
     },
 
-    /** Get a "normalized" amount, i.e. the amount per year or per month, based on a the amount payed for a number of years or months */
+    /** Get a "normalized" amount, i.e. the amount per year or per month, based on a the amount paid for a number of years or months */
     getNormalizedAmount: (normalizedInterval, amount, interval, intervalCount) => {
         if (amount === 0) {
             return 0;

@@ -65,7 +65,7 @@ export const UserModal = ({ user, hideModal }) => {
 
     const formatFee = (paymentProperty) => {
 
-        var hasPayed = paymentProperty.payed;
+        var hasPaid = paymentProperty.paid;
         var methodName = paymentProperty.methodName;
         var periodStart = paymentProperty.periodStart ? new Date(paymentProperty.periodStart) : null;
         var periodEnd = paymentProperty.periodEnd ? new Date(paymentProperty.periodEnd) : null;
@@ -95,7 +95,7 @@ export const UserModal = ({ user, hideModal }) => {
                     </tr>
                     <tr>
                         <td>Period</td>
-                        <td className={hasPayed ? "" : "text-danger"}>{formatDate(periodStart)} - {formatDate(periodEnd)}</td>
+                        <td className={hasPaid ? "" : "text-danger"}>{formatDate(periodStart)} - {formatDate(periodEnd)}</td>
                     </tr>
                     <tr>
                         <td>Period length</td>
@@ -113,15 +113,15 @@ export const UserModal = ({ user, hideModal }) => {
             return <span className="text-danger">ERROR: {errorMessage}</span>;
         }
         else {
-            if (hasPayed) {
+            if (hasPaid) {
                 return <div className="d-inline-block">
-                    <span className="text-success">Payed</span><br />
+                    <span className="text-success">Paid</span><br />
                     {displayDetailsTable()}
                 </div>;
             }
             else {
                 return <div className="d-inline-block">
-                    <span className="text-danger">Not payed</span> {periodEnd ? <span>(expired)</span> : ""}<br />
+                    <span className="text-danger">Not paid</span> {periodEnd ? <span>(expired)</span> : ""}<br />
                     {periodStart && periodEnd && displayDetailsTable()}
                 </div>;
             }

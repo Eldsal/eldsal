@@ -176,14 +176,14 @@ const SubscriptionPage = () => {
                 </tr>
             ))
             :
-            (syncedPayment && (syncedPayment.payed || syncedPayment.periodEnd) ?
-                <tr className={syncedPayment.payed ? "" : "text-danger"}>
-                    <td>{feeName}{syncedPayment.payed ? "" : " (EXPIRED)"}</td>
+            (syncedPayment && (syncedPayment.paid || syncedPayment.periodEnd) ?
+                <tr className={syncedPayment.paid ? "" : "text-danger"}>
+                    <td>{feeName}{syncedPayment.paid ? "" : " (EXPIRED)"}</td>
                     <td>{formatCurrency(syncedPayment.amount, syncedPayment.currency)}</td>
                     <td>{syncedPayment.intervalCount.toString() + " " + (syncedPayment.intervalCount == 1 ? syncedPayment.interval : syncedPayment.interval + "s")}</td>
                     <td>{formatDate(syncedPayment.periodStart)} - {formatDate(syncedPayment.periodEnd)}</td>
                     <td>
-                        {syncedPayment.payed ?
+                        {syncedPayment.paid ?
                             <span className="text-muted">(Manual payment)</span>
                             : <button className="btn btn-primary btn-sm" onClick={() => buySubscription(feeFlavor)} title="Buy a subscription">Show prices</button>}
                     </td>
@@ -305,7 +305,7 @@ return (
                     : <span><FontAwesomeIcon icon="spinner" spin /> Loading...</span>
             }
 
-            { syncedUser && !syncedUser.payments.membership.payed &&
+            { syncedUser && !syncedUser.payments.membership.paid &&
                 <div className="alert alert-warning mt-3">
                     If you have recently created your profile, any existing payments of membership and house card subscriptions may not be displayed here.<br />
                     We will update your payments shortly. If you have questions about why payments are not showing, please contact <a href={"mailto:" + process.env.REACT_APP_WEBMASTER_EMAIL}>{process.env.REACT_APP_WEBMASTER_EMAIL}</a>.
