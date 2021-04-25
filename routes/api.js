@@ -198,6 +198,28 @@ router.patch('/admin/sync-user/:userId', checkJwt, checkUserIsAdmin, async funct
 
 });
 
+router.patch('/admin/update-user-roles/:userId', checkJwt, checkUserIsAdmin, async function (req, res) {
+
+    console.log('admin/update-user-roles');
+
+    const userId = req.params.userId;
+    console.log(userId);
+
+    const { roles } = req.body;
+
+    console.log(roles)
+
+    auth0.adminUpdateUserRoles(req.user.sub, userId, roles)
+        .then(userClientObject => {
+            res.json(userClientObject);
+        })
+        .catch(function (err) {
+            // Handle error.
+            console.error(err);
+            internalServerError(res, err);
+        });
+});
+
 
 /* Update membership fee payment for user
  * Argument object:
@@ -255,7 +277,7 @@ router.patch('/admin/update-user-housecard/:userId', checkJwt, checkUserIsAdmin,
 router.get('/admin/get-subscriptions', checkJwt, checkUserIsAdmin, async (req, res) => {
 
     console.log('admin/get-subscriptions');
-    const x = await 
+    
     stripe.getStripeSubscriptions()
         .then(users => res.json(users))
         .catch(function (err) {
