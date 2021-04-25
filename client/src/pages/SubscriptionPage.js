@@ -22,8 +22,8 @@ const SubscriptionPage = () => {
 
     const [userSubscriptions, setUserSubscriptions] = useState(null);
     const [syncedUser, setSyncedUser] = useState(null);
-    const [showBuyMembfee, setShowBuyMembfee] = useState(false);
-    const [showBuyHouseCard, setShowBuyHouseCard] = useState(false);
+    const [showBuyMembfee, setShowBuyMembfee] = useState(null); // null, "buy", "view"
+    const [showBuyHouseCard, setShowBuyHouseCard] = useState(null); // null, "buy", "view"
 
 
     const getSyncedUser = () => {
@@ -102,16 +102,16 @@ const SubscriptionPage = () => {
         // eslint-disable-next-line
     }, []);
 
-    const buySubscription = (feeFlavor) => {
+    const showPrices = (feeFlavor, buy) => {
         switch (feeFlavor) {
             case fee_flavour_membership:
-                setShowBuyHouseCard(false);
-                setShowBuyMembfee(true);
+                setShowBuyHouseCard(null);
+                setShowBuyMembfee(buy ? "buy" : "view");
                 break;
 
             case fee_flavour_housecard:
-                setShowBuyMembfee(false);
-                setShowBuyHouseCard(true);
+                setShowBuyMembfee(null);
+                setShowBuyHouseCard(buy ? "buy" : "view");
                 break;
         }
         fetchPrices(feeFlavor);
@@ -161,7 +161,7 @@ const SubscriptionPage = () => {
                     {item.read_error &&
                         <>
                             <td colSpan="4" className="text-danger">{item.read_error_message}</td>
-                            <td><button className="btn btn-primary btn-sm" onClick={() => buySubscription(feeFlavor)} title="Buy a subscription">Buy</button></td>
+                        <td><button className="btn btn-primary btn-sm" onClick={() => showPrices(feeFlavor, true)} title="Buy a subscription">Show prices</button></td>
                         </>
                     }
                     {!item.read_error &&
@@ -170,7 +170,10 @@ const SubscriptionPage = () => {
                         <td>{formatCurrency(item.amount, item.currency)}</td>
                             <td>{item.interval_count.toString() + " " + (item.interval_count == 1 ? item.interval : item.interval + "s")}</td>
                             <td>{formatUtcTimestamp(item.current_period_start)} - {formatUtcTimestamp(item.current_period_end)}</td>
-                            <td><button className="btn btn-outline-secondary btn-sm" onClick={() => cancelSubscription(feeFlavor, item)} title="Cancel the subscription">Cancel  subscription</button></td>
+                        <td>
+                            <button className="btn btn-outline-secondary btn-sm" onClick={() => cancelSubscription(feeFlavor, item)} title="Cancel the subscription">Cancel  subscription</button>
+                            <button className="btn btn-outline-secondary btn-sm ml-2" onClick={() => showPrices(feeFlavor, false)} title="Show available prices">Show prices</button>
+                        </td>
                         </>
                     }
                 </tr>
@@ -185,7 +188,7 @@ const SubscriptionPage = () => {
                     <td>
                         {syncedPayment.paid ?
                             <span className="text-muted">(Manual payment)</span>
-                            : <button className="btn btn-primary btn-sm" onClick={() => buySubscription(feeFlavor)} title="Buy a subscription">Show prices</button>}
+                            : <button className="btn btn-primary btn-sm" onClick={() => showPrices(feeFlavor, true)} title="Buy a subscription">Show prices</button>}
                     </td>
 
                 </tr>
@@ -193,11 +196,11 @@ const SubscriptionPage = () => {
                 <tr>
                     <td>{feeName}</td>
                     <td colSpan="3" className="text-muted">(None)</td>
-                    <td><button className="btn btn-primary btn-sm" onClick={() => buySubscription(feeFlavor)} title="Buy a subscription">Show prices</button></td>
+                    <td><button className="btn btn-primary btn-sm" onClick={() => showPrices(feeFlavor, true)} title="Buy a subscription">Show prices</button></td>
                 </tr>);
     }
 
-    const displayPrices = (feeFlavor) => {
+    const displayPrices = (feeFlavor, viewMode) => {
 
         var prices = pps[feeFlavor].prices;
 
@@ -260,12 +263,14 @@ const SubscriptionPage = () => {
                             <td>{getProduct(price.product, feeFlavor).name}{price.nickname ? ", " + price.nickname : ""}</td>
                             <td>{formatCurrency(price.unit_amount / 100, price.currency.toUpperCase())} / {price.recurring.interval_count == 1 ? price.recurring.interval : price.recurring.interval_count.toString() + " " + price.recurring.interval + "s"}</td>
                             <td>
-                                <button
-                                    type="button"
-                                    onClick={() => { purchaseProduct(price.id, feeFlavor); }}
-                                    id="status"
-                                    className="btn btn-primary"
-                                >Buy</button>
+                                {viewMode === "buy" &&
+                                    <button
+                                        type="button"
+                                        onClick={() => { purchaseProduct(price.id, feeFlavor); }}
+                                        id="status"
+                                        className="btn btn-primary"
+                                    >Buy</button>
+                                }
                             </td>
                         </tr>
                     )}
@@ -321,28 +326,30 @@ return (
             </>
         }
 
-        {showBuyMembfee && <>
-            <h5>Buy membership subscription</h5>
-            <p>Select a subscription to sign up for</p>
+        {showBuyMembfee !== null && <>
+            <h3>Buy membership subscription</h3>
+            <p>Select a subscription to sign up for.</p>
             <div>
                 {pps[fee_flavour_membership].prices ?
-                    displayPrices(fee_flavour_membership)
+                    displayPrices(fee_flavour_membership, showBuyMembfee)
                     : <span><FontAwesomeIcon icon="spinner" spin /> Loading...</span>}
             </div>
-            <button type="button" onClick={() => setShowBuyMembfee(false)} className="btn btn-outline-secondary mt-3">Cancel</button>
+            <button type="button" onClick={() => setShowBuyMembfee(null)} className="btn btn-outline-secondary mt-3">Cancel</button>
         </>
         }
 
-        {showBuyHouseCard && <>
-            <h5>Buy house card subscription</h5>
-            <p>Select a subscription to sign up for</p>
+        {showBuyHouseCard !== null && <>
+            <h3>Buy house card subscription</h3>
+            <p>Select a subscription to sign up for.</p> 
+            <div className="alert alert-info">All subscriptions give the same access to the house, but you may choose to pay different amounts per month depending on your financial ability.
+                The recommended amount is the "Standard" subscription.</div>
             <div>
                 {pps[fee_flavour_housecard].prices ?
-                    displayPrices(fee_flavour_housecard)
+                    displayPrices(fee_flavour_housecard, showBuyHouseCard)
                     : <span><FontAwesomeIcon icon="spinner" spin /> Loading...</span>}
             </div>
 
-            <button type="button" onClick={() => setShowBuyHouseCard(false)} className="btn btn-outline-secondary mt-3">Cancel</button>
+            <button type="button" onClick={() => setShowBuyHouseCard(null)} className="btn btn-outline-secondary mt-3">Cancel</button>
         </>
         }
 

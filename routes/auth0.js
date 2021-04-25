@@ -41,11 +41,11 @@ class UserClientObject {
             this.country = null;
         }
 
-        if (user.app_metadata) {
-            this.roles = user.app_metadata.roles;
+        if (user.app_metadata && user.app_metadata.roles) {
+            this.roles = user.app_metadata.roles.replace(/ /g, "").split(",").sort((a,b) => stringCompare(a,b));
         }
         else {
-            this.roles = null;
+            this.roles = [];
         }
 
         this.admin = userHasRole(user, "admin");
@@ -507,6 +507,87 @@ const getPaymentSaveArgumentsFromRequest = (req) => {
     return new PaymentSaveArguments(argMethod, argPeriodStart, argPeriodEnd, argInterval, argIntervalCount, argAmount, argCurrency);
 }
 
+const adminUpdateUserRoles = async (loggedInUserId, userId, roles) => {
+
+    const loggedInUser = await getAuth0User(loggedInUserId);
+
+    if (loggedInUser === null)
+        throw "Logged in user not found";
+
+    const user = await getAuth0User(userId);
+
+    if (user === null)
+        throw "User not found";
+
+    let allRoles = {};
+
+    // Get all existing roles
+    if (user.app_metadata && user.app_metadata.roles) {
+        for (var role of user.app_metadata.roles.replace(/ /g, "").split(",")) {
+            allRoles[role] = true;
+        }
+    }
+
+    console.log(allRoles);
+
+    // Update submitted roles
+    for (var roleName in roles) {
+        if (mayUserEditRole(loggedInUser, user, roleName)) {
+            switch (roles[roleName]) {
+                case true:
+                    // Add role
+                    allRoles[roleName] = true;
+                    break;
+                case false:
+                    // Remove role
+                    allRoles[roleName] = false;
+                    break;
+                default:
+                    throw 'Invalid role permission';
+            }
+        }
+    }
+
+    console.log(allRoles);
+
+    // Make new roles argument (comma separated)
+    let rolesArray = [];
+    for (var r in allRoles) {
+        if (allRoles[r] === true) {
+            rolesArray.push(r);
+        }
+    }
+
+    console.log(rolesArray);
+
+    let userArgument = {};
+    userArgument.app_metadata = { roles: rolesArray.join(",") };
+
+    const params = { id: userId };
+
+    return getManagementClient()
+        .updateUser(params, userArgument)
+        .then(function (user) {
+            return getUserClientObject(user);
+        });
+}
+
+const mayUserEditRole = (loggedInUser, userWithRole, roleName) => {
+    const isSameUser = loggedInUser.user_id == userWithRole.user_id;
+    const isAdmin = userHasRole(loggedInUser, 'admin');
+    const isDeveloper = userHasRole(loggedInUser, 'dev');
+    switch (roleName) {
+        case "dev":
+            return isDeveloper && !isSameUser;
+
+        case "admin":
+            return isAdmin && !isSameUser;
+
+        default:
+            return isAdmin;
+    }
+}
+
 /**
  * Manually update the fee payment for a user, reading arguments from the request body
  * @param {string} flavour
@@ -764,6 +845,8 @@ module.exports = {
      * @param {any} req - The request (reading information from the request body)
      */
     updateUserProfile,
+    /** Update user roles for a user */
+    adminUpdateUserRoles,
     /**
      * Manually update the fee payment for a user, supplying a PaymentSaveArguments object
      * @param {string} flavour

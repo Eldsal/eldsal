@@ -100,7 +100,6 @@ export const AdminSubscriptionList = ({ x }) => {
                                 <td>{item.email}</td>
                                 <td>{displaySubscriptionList(item.membfee_subscriptions)}</td>
                                 <td>{displaySubscriptionList(item.housecard_subscriptions)}</td>
-                                <td>{item.email}</td>
                             </tr>
                         ))
                         :

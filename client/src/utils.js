@@ -122,3 +122,40 @@ export function formatCurrency(amount, currency, alwaysIncludeCents = false) {
     return formatter.format(amount) + " " + _currency;
 }
 
+export function getRoleName(role) {
+    switch (role) {
+        case "admin":
+            return "Administrator";
+
+        case "dev":
+            return "Developer";
+
+        default:
+            return role;
+    }
+}
+
+export function getAllRoles() {
+    return ['admin', 'dev'];
+}
+
+export function userHasRole(user, roleName) {
+    if (!user || !user.roles)
+        return false;
+
+    return user.roles.includes(roleName);
+}
+
+export function mayUserEditRole(loggedInUser, userWithRole, roleName) {
+    const isSameUser = loggedInUser.user_id == userWithRole.user_id;
+    switch (roleName) {
+        case "dev":
+            return loggedInUser.developer && !isSameUser;
+
+        case "admin":
+            return loggedInUser.admin && !isSameUser;
+
+        default:
+            return loggedInUser.admin;
+    }
+}

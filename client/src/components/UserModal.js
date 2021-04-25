@@ -2,8 +2,9 @@ import React, { useState, useEffect } from "react";
 import ReactModal from "react-modal";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import CommonModal from "./common/CommonModal";
-import { formatDate, getDateFormValue, formatCurrency } from '../utils.js';
+import { formatDate, formatCurrency, getRoleName, getAllRoles, userHasRole, mayUserEditRole } from '../utils.js';
 import { useApi } from '../hooks/api';
+import { useUser } from '../hooks/user';
 import { useUi } from '../hooks/ui';
 import Row from "reactstrap/lib/Row";
 import Col from "reactstrap/lib/Col";
@@ -15,9 +16,12 @@ export const UserModal = ({ user, hideModal }) => {
     ReactModal.setAppElement("body");
 
     const { apiGet, apiPatch, apiGetErrorMessage } = useApi();
-    const { alertModal } = useUi(); 
+    const { alertModal } = useUi();
+    const { userInfo } = useUser();
 
     const [paymentToEdit, setPaymentToEdit] = useState(null);
+    const [showRoleEditor, setShowRoleEditor] = useState(false);
+    const [editedRoles, setEditedRoles] = useState(null);
 
     const [showPaymentModal, hidePaymentModal] = useModal(() => (
         <EditPaymentModal payment={getPaymentForEditPaymentModal(paymentToEdit)} apiUrl={getApiUrlForEditPaymentModal(paymentToEdit)} onSave={onPaymentSave} hideModal={hidePaymentModal} />
@@ -151,6 +155,85 @@ export const UserModal = ({ user, hideModal }) => {
             )
     }
 
+    const editRoles = () => {
+
+        let _editedRoles = {};
+        for (var r of user.roles) {
+            _editedRoles[r] = true;
+        }
+        setEditedRoles(_editedRoles);
+
+        setShowRoleEditor(true);
+    }
+
+    const displayRoles = () => {
+        if (!user.roles || user.roles.length === 0)
+            return <div className="text-muted">(None)</div>;
+
+        return user.roles.map(r =>
+            <div key={r}>
+                {getRoleName(r)}
+            </div>
+        );
+    }
+
+    const displayEditRoles = () => {
+        return <>
+            {getAllRoles().filter(role => mayUserEditRole(userInfo, user, role) || userHasRole(user, role)).map(role =>
+                <div key={role}>
+                    <input type="checkbox" id={"cb-role-" + role} defaultChecked={editedRoles[role]} onChange={(event) => toggleEditedRole(role, event.target.checked)} disabled={!mayUserEditRole(userInfo, user, role) } />
+                    <label htmlFor={"cb-role-" + role} className="ml-1">{getRoleName(role)}</label>
+                </div>
+            )}
+            <div className="mt-2">
+                <button type="button" className="btn btn-primary btn-sm" onClick={() => saveRoles()}>Save</button>
+                <button type="button" className="btn btn-outline-secondary btn-sm ml-2" onClick={() => setShowRoleEditor(false)}>Cancel</button>
+            </div>
+        </>;
+    }
+
+    const toggleEditedRole = (role, allowed) => {
+        var _editedRoles = editedRoles;
+
+        console.log(role + ': ' + allowed)
+
+        _editedRoles[role] = allowed;
+
+        setEditedRoles(_editedRoles);
+
+        console.log(editedRoles)
+
+    }
+
+    const saveRoles = async () => {
+        console.log("Save");
+
+        const apiUrl = `admin/update-user-roles/${user.user_id}`;
+        let args = {
+            roles: {}
+        };
+
+        for (var r in editedRoles) {
+            args.roles[r] = editedRoles[r] === true ? true : false;
+        }
+
+        apiPatch(apiUrl, args)
+            .then(
+                success => {
+                    console.log("Success");
+                    user.roles = success.data.roles;
+                    setShowRoleEditor(false);
+                },
+                err => {
+                    console.log(err);
+                    alertModal("error", apiGetErrorMessage(err));
+                })
+            .catch(err => {
+                console.log(err);
+                alertModal("error", apiGetErrorMessage(err));
+            });
+    }
+
     return (
         <CommonModal hideModal={hideModal}>
             <h3>Member</h3>
@@ -246,7 +329,13 @@ export const UserModal = ({ user, hideModal }) => {
                                             Roles
                                 </td>
                                         <td>
-                                            {formatProperty(user.roles)}
+                                            {!showRoleEditor &&
+                                                <>
+                                                    <button type="button" className="btn btn-outline-secondary btn-sm float-right" onClick={() => editRoles()}>Edit</button>
+                                                    {displayRoles()}
+                                                </>
+                                            }
+                                            {showRoleEditor && displayEditRoles()}
                                         </td>
                                     </tr>
                                 </tbody>
