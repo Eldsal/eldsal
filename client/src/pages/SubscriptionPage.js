@@ -281,7 +281,7 @@ const SubscriptionPage = () => {
 return (
     <AppContent>
         <h1>Subscription</h1>
-        <p>Here the user may manage the subscriptions for membership fee and house card fee.</p>
+        <p>This is where you manage your subscriptions for membership fee and house card fee.</p>
         <p>You must pay the membership fee to be a member of Eldsäl.</p>
         <p>A house card subscription is optional. With a house card subscription you always have access to the Eldsäl house when it's not booked, can more easily book events in the house and can attend events in the house for free (unless organizer request special fee).</p>
 
