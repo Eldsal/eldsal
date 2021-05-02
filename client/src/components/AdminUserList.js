@@ -7,7 +7,7 @@ import {
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { useApi } from '../hooks/api';
 import { UserModal } from './UserModal';
-import { formatDate } from '../utils.js';
+import { formatDate, displayNumberOfItems } from '../utils.js';
 import { useUi } from '../hooks/ui';
 
 export const AdminUserList = () => {
@@ -35,6 +35,20 @@ export const AdminUserList = () => {
 
     const formatHousecard = (user) => {
         return formatFee(user.payments.housecard);
+    }
+
+    const hasPaidMembership = (user) => {
+        return hasPaidFee(user.payments.membership);
+    }
+
+    const hasPaidHousecard = (user) => {
+        return hasPaidFee(user.payments.housecard);
+    }
+
+    const hasPaidFee = (paymentProperty) => {
+        var hasPaid = paymentProperty.paid;
+        var isError = paymentProperty.error;
+        return hasPaid && !isError;
     }
 
     const formatFee = (paymentProperty) => {
@@ -109,6 +123,8 @@ export const AdminUserList = () => {
         ? (<span><FontAwesomeIcon icon="spinner" spin /> Loading...</span>)
         : (<>
             <h3>Members</h3>
+
+            <p>Showing {displayNumberOfItems(users.length, "member", "members")} <small>({users.filter(x => hasPaidMembership(x)).length} with paid membership, {users.filter(x => hasPaidHousecard(x)).length} with paid house card)</small></p>
             <Table>
                 <thead>
                     <tr>
