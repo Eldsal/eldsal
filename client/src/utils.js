@@ -159,3 +159,14 @@ export function mayUserEditRole(loggedInUser, userWithRole, roleName) {
             return loggedInUser.admin;
     }
 }
+
+/**
+ * Displays a number of items, using singular or plural version of the name depending on the count.
+ * displayNumberOfItems(x, "box", "boxes") => "0 boxes, "1 box", "2 boxes" etc.
+ * @param {any} count
+ * @param {any} singularName
+ * @param {any} pluralName
+ */
+export function displayNumberOfItems(count, singularName, pluralName) {
+    return count.toString() + " " + (count == 1 ? singularName : pluralName);
+}

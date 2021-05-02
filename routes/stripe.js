@@ -92,6 +92,8 @@ class StripeSubscriptionInfo {
         this.current_period_end = sub.current_period_end;
         this.read_error = false;
         this.read_error_message = null;
+        this.status = sub.status;
+        this.customer_id = sub.customer;
 
         this.quantity = null;
         this.amount = null;
@@ -161,51 +163,6 @@ class StripeSubscriptionInfo {
             // No items
             this.read_error = true;
             this.read_error_message = "No subscription items";
-        }
-
-        return;
-
-        if (sub.plan) {
-            this.price_id = sub.plan.id;
-
-            this.amount = sub.plan.amount / 100; // "amount" is in "cents", i.e. "ören"
-            this.currency = sub.plan.currency;
-            this.interval = sub.plan.interval;
-            this.interval_count = sub.plan.interval_count;
-            this.product_id = sub.plan.product;
-
-            var productSearch = products.filter(x => x.id == this.product_id);
-
-            if (productSearch && productSearch.length == 1) {
-                var product = productSearch[0];
-                this.product_name = product.name;
-            }
-            else {
-                this.product_name = this.product_id;
-            }
-
-            var priceSearch = prices.filter(x => x.id == this.price_id);
-
-            //console.log(prices)
-            //console.log(this.price_id)
-
-            if (priceSearch && priceSearch.length == 1) {
-                var price = priceSearch[0];
-                this.price_name = price.nickname;
-            }
-            else {
-                this.price_name = null;
-            }
-        }
-        else {
-            this.price_id = null;
-            this.amount = null;
-            this.currency = null;
-            this.interval = null;
-            this.interval_count = null;
-            this.product_id = null;
-            this.product_name = null;
-            this.price_name = null;
         }
     }
 }
@@ -320,6 +277,7 @@ async function readSubscriptions(stripeClient, readFromCustomerId, userInfoByStr
     let nextDummyUserId = -1;
 
     for (var s of subscriptions) {
+
         const customerId = s.customer;
         let customer = customersById[customerId];
         let createDummyUser = false;

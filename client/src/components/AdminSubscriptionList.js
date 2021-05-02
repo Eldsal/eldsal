@@ -56,7 +56,11 @@ export const AdminSubscriptionList = ({ x }) => {
 
         var interval = subscription.interval_count == 1 ? subscription.interval : subscription.interval_count + " " + subscription.interval + "s";
 
-        var result = <span>{formatCurrency(subscription.amount, subscription.currency, false)}/{interval}{includeProductName ? <small> ({subscription.product_name})</small> : null}</span>;
+        var result =
+            <>
+                <span>{formatCurrency(subscription.amount, subscription.currency, false)}/{interval}{includeProductName ? <small> ({subscription.product_name})</small> : null}</span>
+                {subscription.status != "active" && <><br/><span className="text-danger">{subscription.status}</span></>}
+            </>;
 
         return result;
     }
@@ -67,7 +71,7 @@ export const AdminSubscriptionList = ({ x }) => {
             var result = displaySubscription(subscriptionList[0], includeProductName);
 
             if (subscriptionList.length > 1) {
-                return <>{result}<br/><span className="text-danger">(More than one subscription)</span></>;
+                return <>{result}<br /><span className="text-danger">(More than one subscription)</span></>;
             }
             else {
                 return result;
