@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import ReactModal from "react-modal";
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import CommonModal from "./common/CommonModal";
-import { formatUtcTimestamp, getDateFormValue, formatCurrency } from '../utils.js';
+import { formatUtcTimestamp, displayNumberOfItems, formatCurrency } from '../utils.js';
 import {
     Table
 } from 'reactstrap';
@@ -15,6 +15,8 @@ export const UserSubscriptionsModal = ({ user, hideModal }) => {
 
     const { alertModal, confirmModal } = useUi();
     const { apiGet, apiPatch, apiGetErrorMessage } = useApi();
+
+    const [showDetailItem, setShowDetailItem] = useState(null);
 
     const formatProperty = (value) => {
         return emptyStringIfNull(value);
@@ -64,6 +66,7 @@ export const UserSubscriptionsModal = ({ user, hideModal }) => {
                     <th>Product</th>
                     <th>Amount</th>
                     <th>Interval</th>
+                    <th>Status</th>
                     <th>Current period</th>
                     <th></th>
                 </tr>
@@ -73,15 +76,30 @@ export const UserSubscriptionsModal = ({ user, hideModal }) => {
                     subscriptionList.map(item => (
                         <tr key={item}>
                             {item.read_error &&
-                                <td colSpan="5" className="text-danger">{item.read_error_message}</td>
+                                <td colSpan="6" className="text-danger">{item.read_error_message}</td>
                             }
                             {!item.read_error &&
                                 <>
-                                <td>{item.product_name}{item.price_name ? " (" + item.price_name + ")" : ""}</td>
-                                <td>{formatCurrency(item.amount, item.currency)}</td>
-                                    <td>{item.interval_count == 1 ? item.interval : item.interval_count.toString() + " " + item.interval + "s"}</td>
+                                    <td>{item.product_name}{item.price_name ? " (" + item.price_name + ")" : ""}
+                                        {showDetailItem == item.subscription_id &&
+                                            <div id={"subscription-details-" + item.subscription_id} className="pl-2 pt-2">
+                                                <small>
+                                                    Subscription Id: {item.subscription_id}<br />
+                                        Customer Id: {item.customer_id}<br />
+                                        Product Id: {item.product_id}<br />
+                                        Price Id: {item.price_id}
+                                                </small>
+                                            </div>
+                                        }
+                                    </td>
+                                    <td>{formatCurrency(item.amount, item.currency)}</td>
+                                    <td>{displayNumberOfItems(item.interval_count, item.interval, item.interval + "s")}</td>
+                                    <td className={item.status == "active" ? "text-success" : "text-danger"}>{item.status}</td>
                                     <td>{formatUtcTimestamp(item.current_period_start)} - {formatUtcTimestamp(item.current_period_end)}</td>
-                                    <td><button className="btn btn-outline-secondary btn-sm" onClick={() => cancelSubscription(feeType, item)} title="Cancel the subscription">Cancel</button></td>
+                                    <td>
+                                        <button className="btn btn-outline-secondary btn-sm" onClick={() => cancelSubscription(feeType, item)} title="Cancel the subscription">Cancel</button>
+                                    <button className="btn btn-outline-secondary btn-sm ml-2" onClick={() => setShowDetailItem(showDetailItem == item.subscription_id ? null : item.subscription_id)} title="Show Stripe subscription details">Details</button>
+                                    </td>
                                 </>
                             }
                         </tr>
