@@ -42,7 +42,7 @@ class UserClientObject {
         }
 
         if (user.app_metadata && user.app_metadata.roles) {
-            this.roles = user.app_metadata.roles.replace(/ /g, "").split(",").sort((a,b) => stringCompare(a,b));
+            this.roles = user.app_metadata.roles.replace(/ /g, "").split(",").sort((a, b) => stringCompare(a, b));
         }
         else {
             this.roles = [];
@@ -356,22 +356,38 @@ const getUserAppMetaDataFee = (user, paymentProperty, normalizedInterval) => {
 
 /** Get all users as client objects (in the current connection) */
 const getUsers = async () => {
-    return getManagementClient()
-        .getUsers()
-        .then(users => {
-            // Filter out only users from the connection specified in the env file
-            return users.filter(user => isUserInCurrentConnection(user)).map(user => getUserClientObject(user)).sort((a, b) => stringCompare(a.name, b.name));
-        })
+    const users = await getAuth0Users();
+    return users.filter(user => isUserInCurrentConnection(user)).map(user => getUserClientObject(user)).sort((a, b) => stringCompare(a.name, b.name));
 }
 
 /** Get all users as Auth0 objects (in the current connection) */
 const getAuth0Users = async () => {
-    return getManagementClient()
-        .getUsers()
-        .then(users => {
-            // Filter out only users from the connection specified in the env file
-            return users.filter(user => isUserInCurrentConnection(user));
-        })
+
+    const pageSize = 50;
+    var client = getManagementClient();
+
+    const users = [];
+
+    let page = 0;
+    let read = true;
+    while (read) {
+        const _users = await client.getUsers({ page: page, per_page: pageSize });
+        for (var u of _users) {
+            if (isUserInCurrentConnection(u)) {
+                users.push(u);
+            }
+        }
+
+        if (_users.length < pageSize) {
+            read = false;
+        }
+        else {
+            page++;
+            read = true;
+        }
+    }
+
+    return users;
 }
 
 /**
@@ -594,8 +610,7 @@ const mayUserEditRole = (loggedInUser, userWithRole, roleName) => {
  * @param {number} userId
  * @param {any} req - The request
  */
-const adminUpdateUserFeeFromRequest = async (flavour, userId, req) =>
-{
+const adminUpdateUserFeeFromRequest = async (flavour, userId, req) => {
     var payment = getPaymentSaveArgumentsFromRequest(req);
 
     return adminUpdateUserFee(flavour, userId, payment);
@@ -668,129 +683,127 @@ const exportUsers = async () => {
         }
     }
 
-    return getManagementClient()
-        .getUsers()
-        .then(users => {
+    const users = await getAuth0Users();
 
-            const fields = [
-                {
-                    label: 'First name',
-                    value: 'given_name'
-                },
-                {
-                    label: 'Surname',
-                    value: 'family_name'
-                },
-                {
-                    label: 'Email',
-                    value: 'email'
-                },
-                {
-                    label: 'Birth date',
-                    value: 'birth_date'
-                },
-                {
-                    label: 'Phone number',
-                    value: 'phone_number'
-                },
-                {
-                    label: 'Address',
-                    value: 'address_line_1'
-                },
-                {
-                    label: 'Address (line 2)',
-                    value: 'address_line_2'
-                },
-                {
-                    label: 'Postal code',
-                    value: 'postal_code'
-                },
-                {
-                    label: 'City',
-                    value: 'city'
-                },
-                {
-                    label: 'Country',
-                    value: 'country'
-                },
-                {
-                    label: 'MS paid',
-                    value: (row) => row.payments.membership.paid ? "Yes" : "No"
-                },
-                {
-                    label: 'MS period start',
-                    value: (row) => formatDate(row.payments.membership.periodStart)
-                },
-                {
-                    label: 'MS period end',
-                    value: (row) => formatDate(row.payments.membership.periodEnd)
-                },
-                {
-                    label: 'MS interval',
-                    value: (row) => formatInterval(row.payments.membership.interval, row.payments.membership.intervalCount)
-                },
-                {
-                    label: 'MS amount',
-                    value: (row) => formatInt(row.payments.membership.amount)
-                },
-                {
-                    label: 'MS amount / year',
-                    value: (row) => getNormalizedAmount("year", row.payments.membership.amount, row.payments.membership.interval, row.payments.membership.intervalCount)
-                },
-                {
-                    label: 'MS currency',
-                    value: 'payments.membership.currency'
-                },
-                {
-                    label: 'MS payment method',
-                    value: 'payments.membership.methodName'
-                },
-                {
-                    label: 'HC paid',
-                    value: (row) => row.payments.housecard.paid ? "Yes" : "No"
-                },
-                {
-                    label: 'HC period start',
-                    value: (row) => formatDate(row.payments.housecard.periodStart)
-                },
-                {
-                    label: 'HC period end',
-                    value: (row) => formatDate(row.payments.housecard.periodEnd)
-                },
-                {
-                    label: 'HC interval',
-                    value: (row) => formatInterval(row.payments.housecard.interval, row.payments.housecard.intervalCount)
-                },
-                {
-                    label: 'HC amount',
-                    value: (row) => formatInt(row.payments.housecard.amount)
-                },
-                {
-                    label: 'HC amount / month',
-                    value: (row) => getNormalizedAmount("month", row.payments.housecard.amount, row.payments.housecard.interval, row.payments.housecard.intervalCount)
-                },
-                {
-                    label: 'HC currency',
-                    value: 'payments.housecard.currency'
-                },
-                {
-                    label: 'House card payment method',
-                    value: 'payments.housecard.methodName'
-                }
-            ];
 
-            // Filter out only users from the connection specified in the env file
-            const usersJson = users.filter(user => isUserInCurrentConnection(user)).map(user => getUserClientObject(user)).sort((a, b) => stringCompare(a.name, b.name));
+    const fields = [
+        {
+            label: 'First name',
+            value: 'given_name'
+        },
+        {
+            label: 'Surname',
+            value: 'family_name'
+        },
+        {
+            label: 'Email',
+            value: 'email'
+        },
+        {
+            label: 'Birth date',
+            value: 'birth_date'
+        },
+        {
+            label: 'Phone number',
+            value: 'phone_number'
+        },
+        {
+            label: 'Address',
+            value: 'address_line_1'
+        },
+        {
+            label: 'Address (line 2)',
+            value: 'address_line_2'
+        },
+        {
+            label: 'Postal code',
+            value: 'postal_code'
+        },
+        {
+            label: 'City',
+            value: 'city'
+        },
+        {
+            label: 'Country',
+            value: 'country'
+        },
+        {
+            label: 'MS paid',
+            value: (row) => row.payments.membership.paid ? "Yes" : "No"
+        },
+        {
+            label: 'MS period start',
+            value: (row) => formatDate(row.payments.membership.periodStart)
+        },
+        {
+            label: 'MS period end',
+            value: (row) => formatDate(row.payments.membership.periodEnd)
+        },
+        {
+            label: 'MS interval',
+            value: (row) => formatInterval(row.payments.membership.interval, row.payments.membership.intervalCount)
+        },
+        {
+            label: 'MS amount',
+            value: (row) => formatInt(row.payments.membership.amount)
+        },
+        {
+            label: 'MS amount / year',
+            value: (row) => getNormalizedAmount("year", row.payments.membership.amount, row.payments.membership.interval, row.payments.membership.intervalCount)
+        },
+        {
+            label: 'MS currency',
+            value: 'payments.membership.currency'
+        },
+        {
+            label: 'MS payment method',
+            value: 'payments.membership.methodName'
+        },
+        {
+            label: 'HC paid',
+            value: (row) => row.payments.housecard.paid ? "Yes" : "No"
+        },
+        {
+            label: 'HC period start',
+            value: (row) => formatDate(row.payments.housecard.periodStart)
+        },
+        {
+            label: 'HC period end',
+            value: (row) => formatDate(row.payments.housecard.periodEnd)
+        },
+        {
+            label: 'HC interval',
+            value: (row) => formatInterval(row.payments.housecard.interval, row.payments.housecard.intervalCount)
+        },
+        {
+            label: 'HC amount',
+            value: (row) => formatInt(row.payments.housecard.amount)
+        },
+        {
+            label: 'HC amount / month',
+            value: (row) => getNormalizedAmount("month", row.payments.housecard.amount, row.payments.housecard.interval, row.payments.housecard.intervalCount)
+        },
+        {
+            label: 'HC currency',
+            value: 'payments.housecard.currency'
+        },
+        {
+            label: 'House card payment method',
+            value: 'payments.housecard.methodName'
+        }
+    ];
 
-            const json2csv = new Parser({ fields, withBOM: true });
-            const csv = json2csv.parse(usersJson);
+    // Filter out only users from the connection specified in the env file
+    const usersJson = users.filter(user => isUserInCurrentConnection(user)).map(user => getUserClientObject(user)).sort((a, b) => stringCompare(a.name, b.name));
 
-            // The withBOM option in Parser should add BOM character to CSV to signal UTF-8, but it doesn't.
-            // The only way I've got it to work is to use withBOM:true AND manually adding the BOM character to the response. /DO
-            const bom = "\ufeff";
+    const json2csv = new Parser({ fields, withBOM: true });
+    const csv = json2csv.parse(usersJson);
 
-            return (bom + csv);
-        })
+    // The withBOM option in Parser should add BOM character to CSV to signal UTF-8, but it doesn't.
+    // The only way I've got it to work is to use withBOM:true AND manually adding the BOM character to the response. /DO
+    const bom = "\ufeff";
+
+    return (bom + csv);
 }
 
 module.exports = {
