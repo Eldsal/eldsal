@@ -70,6 +70,18 @@ const AdminPage = () => {
                 <TabContent activeTab={activeTab} className="mt-4">
                     <TabPane tabId="home">
                         <p>Welcome to the admin page</p>
+                        <div className="mt-3">
+                            <a href="javascript:void 0" onClick={() => toggleTab('users')}>Members</a><br />
+                            View a list of all members
+                        </div>
+                        <div className="mt-3">
+                            <a href="javascript:void 0" onClick={() => toggleTab('subscriptions')}>Stripe subscriptions</a><br />
+                            View all active Stripe subscriptions 
+                        </div>
+                        <div className="mt-3">
+                            <a href="javascript:void 0" onClick={() => toggleTab('stripePayouts')}>Stripe payouts</a><br />
+                            View all payouts from Stripe
+                        </div>
                     </TabPane>
                     <TabPane tabId="users">
                         {activeTab === "users" && (<AdminUserList />)}

@@ -1,13 +1,11 @@
 import React, { useState, useEffect } from "react";
 import ReactModal from "react-modal";
 import { useModal } from "react-modal-hook";
-import {
-    Table
-} from 'reactstrap';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { useApi } from '../hooks/api';
 import { UserSubscriptionsModal } from './UserSubscriptionsModal';
 import { formatDate, formatCurrency } from '../utils.js';
+import { useSortableTable } from '../hooks/table'
 
 export const AdminSubscriptionList = ({ x }) => {
 
@@ -15,6 +13,7 @@ export const AdminSubscriptionList = ({ x }) => {
     const [data, setData] = useState(null);
     const { apiGet } = useApi();
     const [selectedItem, setSelectedItem] = useState(null);
+    const { Table, makeSelectColumnFilter } = useSortableTable();
 
     ReactModal.setAppElement("body");
 
@@ -59,7 +58,7 @@ export const AdminSubscriptionList = ({ x }) => {
         var result =
             <>
                 <span>{formatCurrency(subscription.amount, subscription.currency, false)}/{interval}{includeProductName ? <small> ({subscription.product_name})</small> : null}</span>
-                {subscription.status != "active" && <><br/><span className="text-danger">{subscription.status}</span></>}
+                {subscription.status != "active" && <><br /><span className="text-danger">{subscription.status}</span></>}
             </>;
 
         return result;
@@ -71,48 +70,56 @@ export const AdminSubscriptionList = ({ x }) => {
             var result = displaySubscription(subscriptionList[0], includeProductName);
 
             if (subscriptionList.length > 1) {
-                return <>{result}<br /><span className="text-danger">(More than one subscription)</span></>;
+                return <span data-filter="[yes][multiple]">{result}<br /><span className="text-danger">(More than one subscription)</span></span>;
             }
             else {
-                return result;
+                return <span data-filter="[yes]">{result}</span>;
             }
 
         }
         else {
-            return <span className="text-muted">(None)</span>;
+            return <span className="text-muted" data-filter="[no]">(None)</span>;
         }
     }
+
+    const columns = React.useMemo(
+        () => [
+            {
+                id: 'name',
+                Header: 'Name',
+                accessor: 'user_name',
+                Cell: ({ value, row }) => <span className={`btn btn-link p-0 m-0 ${row.original.is_existing_user ? "" : "text-danger"}`} onClick={() => showSubscriptionsModal(row.original)}>{value}</span>,
+                sortType: 'textIgnoreCase',
+            },
+            {
+                id: 'email',
+                Header: 'Email',
+                accessor: 'email',
+                sortType: 'textIgnoreCase',
+            },
+            {
+                id: 'membership',
+                Header: 'Membership',
+                accessor: (row, rowIndex) => displaySubscriptionList(row.membfee_subscriptions),
+                Filter: makeSelectColumnFilter([new Option('No', 'no'), new Option('Yes', 'yes'), new Option('Multiple', 'multiple')]),
+                filter: 'dataFilter'
+            },
+            {
+                id: 'housecard',
+                Header: 'Housecard',
+                accessor: (row, rowIndex) => displaySubscriptionList(row.housecard_subscriptions),
+                Filter: makeSelectColumnFilter([new Option('No', 'no'), new Option('Yes', 'yes'), new Option('Multiple', 'multiple')]),
+                filter: 'dataFilter'
+            }
+        ],
+        []
+    );
 
     return !dataLoaded
         ? (<span><FontAwesomeIcon icon="spinner" spin /> Loading...</span>)
         : (<>
             <h3>Stripe subscriptions</h3>
-            <Table>
-                <thead>
-                    <tr>
-                        <th>Name</th>
-                        <th>Email</th>
-                        <th>Membership</th>
-                        <th>Housecard</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {data && data.length ?
-                        data.map(item => (
-                            <tr key={item.user_id}>
-                                <td><span className={`btn btn-link p-0 m-0 ${item.is_existing_user ? "" : "text-danger"}`} onClick={() => showSubscriptionsModal(item)}>{item.user_name}</span></td>
-                                <td>{item.email}</td>
-                                <td>{displaySubscriptionList(item.membfee_subscriptions)}</td>
-                                <td>{displaySubscriptionList(item.housecard_subscriptions)}</td>
-                            </tr>
-                        ))
-                        :
-                        (<tr>
-                            <td colspan="4">(No subscriptions found)</td>
-                        </tr>)
-                    }
-                </tbody>
-            </Table>
+            <Table columns={columns} data={data} sort={true} filter={true} />
         </>
         );
 };

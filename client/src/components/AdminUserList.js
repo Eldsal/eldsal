@@ -1,14 +1,12 @@
 import React, { useState, useEffect } from "react";
 import ReactModal from "react-modal";
 import { useModal } from "react-modal-hook";
-import {
-    Table
-} from 'reactstrap';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { useApi } from '../hooks/api';
 import { UserModal } from './UserModal';
-import { formatDate, displayNumberOfItems } from '../utils.js';
+import { formatDate, displayNumberOfItems, getRoleName, getAllRoles } from '../utils.js';
 import { useUi } from '../hooks/ui';
+import { useSortableTable } from '../hooks/table'
 
 export const AdminUserList = () => {
 
@@ -16,7 +14,8 @@ export const AdminUserList = () => {
     const [users, setUsers] = useState(null);
     const [selectedUser, setSelectedUser] = useState(null);
     const { apiGet, apiPatch } = useApi();
-    const { alertModal } = useUi(); 
+    const { alertModal } = useUi();
+    const { Table, makeSelectColumnFilter } = useSortableTable();
 
     ReactModal.setAppElement("body");
 
@@ -59,15 +58,23 @@ export const AdminUserList = () => {
         var isError = paymentProperty.error;
         var errorMessage = paymentProperty.errorMessage;
 
+
         if (isError) {
             return <span className="text-danger">ERROR: {errorMessage}</span>;
         }
         else {
+
             if (hasPaid) {
-                return <span><span className="text-success">Paid</span><small> (until {formatDate(periodEndDate)})</small></span>;
+                return <span data-filter="[paid]"><span className="text-success">Paid</span><small> (until {formatDate(periodEndDate)})</small></span>;
             }
             else {
-                return <span><span className="text-danger">Not paid</span><small>{periodEndDate ? " (expired " + formatDate(periodEndDate) + ")" : ""}</small></span>;
+                var expired = !!periodEndDate;
+                var filter = "[notpaid]";
+                if (expired) {
+                    filter += '[expired]';
+                }
+
+                return <span data-filter={filter}><span className="text-danger">Not paid</span><small>{expired ? " (expired " + formatDate(periodEndDate) + ")" : ""}</small></span>;
             }
         }
     }
@@ -118,41 +125,110 @@ export const AdminUserList = () => {
             });
     }, []);
 
+    // Column filter for roles
+    function RoleColumnFilter({
+        column: { filterValue, setFilter, preFilteredRows, id },
+    }) {
+        // Calculate the options for filtering
+        // using the preFilteredRows
+        const options = React.useMemo(() => {
+            const options = [];
+            for (var role of getAllRoles()) {
+                options.push(new Option(getRoleName(role), role));
+            }
+            return options;
+        }, [])
+
+        // Render a multi-select box
+        return (
+            <select className="border"
+                value={filterValue}
+                onChange={e => {
+                    setFilter(e.target.value || undefined)
+                }}
+            >
+                <option value="">All</option>
+                {options.map((option, i) => (
+                    <option key={i} value={option.value}>
+                        {option.text}
+                    </option>
+                ))}
+            </select>
+        )
+    }
+
+    const paymentColumnFilter = React.useMemo(() =>
+        makeSelectColumnFilter([
+            new Option('Paid', 'paid'),
+            new Option('Not paid', 'notpaid'),
+            new Option('Expired', 'expired')
+        ])
+        , []);
+
+    const columns = React.useMemo(
+        () => [
+            {
+                id: 'avatar',
+                accessor: (row, rowIndex) => <img className="App-avatar" src={row.picture} alt={row.name} onClick={() => showUserModal(row)} />,
+                disableFilter: true,
+                defaultCanFilter: false,
+                Filter: ''
+           },
+            {
+                id: 'name',
+                Header: 'Name',
+                accessor: 'name',
+                Cell: ({ value, row }) => <span className="btn btn-link p-0 m-0" onClick={() => showUserModal(row.original)}>{value}</span>,
+                sortType: 'textIgnoreCase',
+            },
+            {
+                id: 'email',
+                Header: 'Email',
+                accessor: 'email',
+                sortType: 'textIgnoreCase',
+            },
+            {
+                id: 'created_at',
+                Header: 'Signed up',
+                accessor: (row, rowIndex) => row['created_at'] ? formatDate(new Date(row['created_at'])) : '',
+                Filter: ''
+            },
+            {
+                id: 'roles',
+                Header: 'Roles',
+                accessor: 'roles',
+                Cell: ({ value, row }) => value ? <span data-filter={value.map(x => '[' + x + ']').join('')}>{value.map(x => getRoleName(x)).join(', ')}</span> : null,
+                Filter: RoleColumnFilter,
+                filter: 'arrayContainsFilter',
+                sortType: 'array'
+            },
+            {
+                id: 'membership',
+                Header: 'Membership',
+                accessor: (row, rowIndex) => formatMembership(row),
+                Filter: paymentColumnFilter,
+                filter: 'dataFilter'
+            },
+            {
+                id: 'housecard',
+                Header: 'Housecard',
+                accessor: (row, rowIndex) => formatHousecard(row),
+                Filter: paymentColumnFilter,
+                filter: 'dataFilter'
+            }
+        ],
+        []
+    );
 
     return !usersLoaded
         ? (<span><FontAwesomeIcon icon="spinner" spin /> Loading...</span>)
         : (<>
             <h3>Members</h3>
 
-            <p>Showing {displayNumberOfItems(users.length, "member", "members")} <small>({users.filter(x => hasPaidMembership(x)).length} with paid membership, {users.filter(x => hasPaidHousecard(x)).length} with paid house card)</small></p>
-            <Table>
-                <thead>
-                    <tr>
-                        <th></th>
-                        <th>Name</th>
-                        <th>Email</th>
-                        <th>Membership</th>
-                        <th>Housecard</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {users.length ?
-                        users.map(user => (
-                            <tr key={user.user_id}>
-                                <td><img className="App-avatar" src={user.picture} alt={user.name} onClick={() => showUserModal(user)} /></td>
-                                <td><span className="btn btn-link p-0 m-0" onClick={() => showUserModal(user)}>{user.name}</span></td>
-                                <td>{user.email}</td>
-                                <td>{formatMembership(user)}</td>
-                                <td>{formatHousecard(user)}</td>
-                            </tr>
-                        ))
-                        :
-                        (<tr>
-                            <td colSpan="4">(No users found)</td>
-                        </tr>)
-                    }
-                </tbody>
-            </Table>
+            <p>{displayNumberOfItems(users.length, "member", "members")} <small>({users.filter(x => hasPaidMembership(x)).length} with paid membership, {users.filter(x => hasPaidHousecard(x)).length} with paid house card)</small></p>
+
+            <Table columns={columns} data={users} filter={true} sort={true} />
+
             <div className="mt-4">
                 <button className="btn btn-outline-secondary mr-2" onClick={() => syncUsers()}>Sync Stripe payments</button>
                 <button className="btn btn-outline-secondary mr-2" onClick={() => exportUsers()}>Download member list</button>
