@@ -66,5 +66,18 @@ module.exports = {
         else {
             return null;
         }
+    },
+
+    getRoleName: (role) => {
+        switch (role) {
+            case "admin":
+                return "Administrator";
+
+            case "dev":
+                return "Developer";
+
+            default:
+                return role;
+        }
     }
 }

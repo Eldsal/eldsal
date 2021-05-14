@@ -2,7 +2,7 @@ const { AuthenticationClient, ManagementClient } = require('auth0');
 const { Parser } = require('json2csv');
 const utils = require("./utils");
 
-const { stringCompare, getDateString, getNormalizedAmount } = utils;
+const { stringCompare, getDateString, getNormalizedAmount, getRoleName } = utils;
 
 /*
  * Auth0 methods
@@ -17,6 +17,7 @@ class UserClientObject {
         this.given_name = user.given_name;
         this.family_name = user.family_name;
         this.email = user.email;
+        this.created_at = user.created_at; // Date created, e.g. '2020-09-30T10:09:57.213Z'
 
         if (!this.name && (this.given_name || this.family_name)) {
             this.name = this.given_name + " " + this.family_name;
@@ -726,6 +727,14 @@ const exportUsers = async () => {
         {
             label: 'Country',
             value: 'country'
+        },
+        {
+            label: 'Signed up',
+            value: (row) => formatDate(row.created_at)
+        },
+        {
+            label: 'Roles',
+            value: (row) => row.roles ? row.roles.map(x => getRoleName(x)).join(", ") : null
         },
         {
             label: 'MS paid',
