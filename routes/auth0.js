@@ -738,66 +738,34 @@ const exportUsers = async () => {
         },
         {
             label: 'MS paid',
-            value: (row) => row.payments.membership.paid ? "Yes" : "No"
-        },
-        {
-            label: 'MS period start',
-            value: (row) => formatDate(row.payments.membership.periodStart)
-        },
-        {
-            label: 'MS period end',
-            value: (row) => formatDate(row.payments.membership.periodEnd)
-        },
-        {
-            label: 'MS interval',
-            value: (row) => formatInterval(row.payments.membership.interval, row.payments.membership.intervalCount)
-        },
-        {
-            label: 'MS amount',
-            value: (row) => formatInt(row.payments.membership.amount)
-        },
-        {
-            label: 'MS amount / year',
-            value: (row) => getNormalizedAmount("year", row.payments.membership.amount, row.payments.membership.interval, row.payments.membership.intervalCount)
-        },
-        {
-            label: 'MS currency',
-            value: 'payments.membership.currency'
-        },
-        {
-            label: 'MS payment method',
-            value: 'payments.membership.methodName'
-        },
-        {
-            label: 'HC paid',
             value: (row) => row.payments.housecard.paid ? "Yes" : "No"
         },
         {
-            label: 'HC period start',
+            label: 'MS period start',
             value: (row) => formatDate(row.payments.housecard.periodStart)
         },
         {
-            label: 'HC period end',
+            label: 'MS period end',
             value: (row) => formatDate(row.payments.housecard.periodEnd)
         },
         {
-            label: 'HC interval',
+            label: 'MS interval',
             value: (row) => formatInterval(row.payments.housecard.interval, row.payments.housecard.intervalCount)
         },
         {
-            label: 'HC amount',
+            label: 'MS amount',
             value: (row) => formatInt(row.payments.housecard.amount)
         },
         {
-            label: 'HC amount / month',
+            label: 'MS amount / month',
             value: (row) => getNormalizedAmount("month", row.payments.housecard.amount, row.payments.housecard.interval, row.payments.housecard.intervalCount)
         },
         {
-            label: 'HC currency',
+            label: 'MS currency',
             value: 'payments.housecard.currency'
         },
         {
-            label: 'House card payment method',
+            label: 'MS payment method',
             value: 'payments.housecard.methodName'
         }
     ];

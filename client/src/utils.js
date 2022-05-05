@@ -8,10 +8,10 @@ export var fee_flavour_housecard = "housecard";
 export function getFeeFlavourName(flavour, upperCaseFirstChar = true) {
     switch (flavour) {
         case fee_flavour_membership:
-            return upperCaseFirstChar ? "Membership" : "membership";
+            return upperCaseFirstChar ? "Membership (Retired model)" : "membership";
 
         case fee_flavour_housecard:
-            return upperCaseFirstChar ? "House card" : "house card";
+            return upperCaseFirstChar ? "Membership" : "house card";
 
         default:
             return upperCaseFirstChar ? "(Unknown)" : "(unknown)";
@@ -120,6 +120,15 @@ export function formatCurrency(amount, currency, alwaysIncludeCents = false) {
     });
 
     return formatter.format(amount) + " " + _currency;
+}
+
+export function formatCurrencyAndInterval(amount, currency, interval, intervalCount, alwaysIncludeCents = false)
+{
+    let amountText = formatCurrency(amount, currency, alwaysIncludeCents);
+
+    let intervalText = intervalCount === 1 ? interval : (intervalCount.toString() + " " + interval + "s");
+
+    return amountText + " / " + intervalText;
 }
 
 export function getRoleName(role) {

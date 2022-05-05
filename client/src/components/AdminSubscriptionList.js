@@ -98,19 +98,19 @@ export const AdminSubscriptionList = ({ x }) => {
                 sortType: 'textIgnoreCase',
             },
             {
-                id: 'membership',
+                id: 'housecard',
                 Header: 'Membership',
-                accessor: (row, rowIndex) => displaySubscriptionList(row.membfee_subscriptions),
+                accessor: (row, rowIndex) => displaySubscriptionList(row.housecard_subscriptions),
                 Filter: makeSelectColumnFilter([new Option('No', 'no'), new Option('Yes', 'yes'), new Option('Multiple', 'multiple')]),
                 filter: 'dataFilter'
             },
             {
-                id: 'housecard',
-                Header: 'Housecard',
-                accessor: (row, rowIndex) => displaySubscriptionList(row.housecard_subscriptions),
+                id: 'membership',
+                Header: 'Membership (Retired model)',
+                accessor: (row, rowIndex) => displaySubscriptionList(row.membfee_subscriptions),
                 Filter: makeSelectColumnFilter([new Option('No', 'no'), new Option('Yes', 'yes'), new Option('Multiple', 'multiple')]),
                 filter: 'dataFilter'
-            }
+            }            
         ],
         []
     );
