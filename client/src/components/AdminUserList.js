@@ -28,16 +28,8 @@ export const AdminUserList = () => {
         showModal();
     }
 
-    const formatMembership = (user) => {
-        return formatFee(user.payments.membership);
-    }
-
     const formatHousecard = (user) => {
         return formatFee(user.payments.housecard);
-    }
-
-    const hasPaidMembership = (user) => {
-        return hasPaidFee(user.payments.membership);
     }
 
     const hasPaidHousecard = (user) => {
@@ -201,17 +193,10 @@ export const AdminUserList = () => {
                 Filter: RoleColumnFilter,
                 filter: 'arrayContainsFilter',
                 sortType: 'array'
-            },
-            {
-                id: 'membership',
-                Header: 'Membership',
-                accessor: (row, rowIndex) => formatMembership(row),
-                Filter: paymentColumnFilter,
-                filter: 'dataFilter'
-            },
+            },            
             {
                 id: 'housecard',
-                Header: 'Housecard',
+                Header: 'Membership',
                 accessor: (row, rowIndex) => formatHousecard(row),
                 Filter: paymentColumnFilter,
                 filter: 'dataFilter'
@@ -225,7 +210,7 @@ export const AdminUserList = () => {
         : (<>
             <h3>Members</h3>
 
-            <p>{displayNumberOfItems(users.length, "member", "members")} <small>({users.filter(x => hasPaidMembership(x)).length} with paid membership, {users.filter(x => hasPaidHousecard(x)).length} with paid house card)</small></p>
+            <p>{displayNumberOfItems(users.length, "member", "members")} <small>({users.filter(x => hasPaidHousecard(x)).length} with paid membership)</small></p>
 
             <Table columns={columns} data={users} filter={true} sort={true} />
 

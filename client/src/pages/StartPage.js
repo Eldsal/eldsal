@@ -58,26 +58,6 @@ const StartPage = () => {
                 </>;
         }
 
-        let membership;
-        if (!syncedUser) {
-            membership = <span><FontAwesomeIcon icon="spinner" spin /> Loading...</span>;
-        }
-        else if (syncedUser.payments.membership.paid) {
-            membership =
-                <>
-                    <span className="text-success">Paid</span>
-                    <small className="ml-2">(until {syncedUser.payments.membership.periodEnd})</small>
-                </>;
-        }
-        else {
-            membership =
-                <>
-                    <span className="text-danger">Not paid!</span>
-                    {syncedUser.payments.membership.periodEnd ? <small className="ml-2 text-danger">(Expired {syncedUser.payments.membership.periodEnd})</small> : ""}
-                    <a className="ml-2" href="/subscription">Fix</a>
-                </>
-        }
-
         let houseCard;
         if (!syncedUser) {
             houseCard = <span><FontAwesomeIcon icon="spinner" spin /> Loading...</span>;
@@ -93,23 +73,16 @@ const StartPage = () => {
         else {
             houseCard =
                 <>
-                    <span className="text-muted">(None)</span>
+                    <span className="text-danger">Not paid!</span>
                     {syncedUser.payments.housecard.periodEnd ? <small className="ml-2 text-danger">(Expired {syncedUser.payments.housecard.periodEnd})</small> : ""}
-                    <a className="ml-2" href="/subscription">Buy</a>
+                    <a className="ml-2" href="/subscription">Fix</a>
                 </>
         }
 
         return (
             <>
                 { addRow("Profile", "/profile", profile)}
-                { addRow("Membership", "/subscription", membership)}
-                { addRow("House card", "/subscription", houseCard)}
-                { syncedUser && !syncedUser.payments.membership.paid &&
-                    <div className="alert alert-warning mt-3">
-                    If you have recently created your profile, any existing payments of membership and house card subscriptions may not be displayed here.<br/>
-                    We will update your payments shortly. If you have questions about why payments are not showing, please contact <a href={"mailto:" + process.env.REACT_APP_WEBMASTER_EMAIL}>{process.env.REACT_APP_WEBMASTER_EMAIL}</a>.
-                    </div>
-                }
+                { addRow("Membership", "/subscription", houseCard)}
             </>
         );
     }
@@ -121,9 +94,10 @@ const StartPage = () => {
     return (
         <AppContent>
             <h1>Welcome to Eldsäl</h1>
-            <p>This is the member web for the <a href="https://eldsal.se">Eldsäl</a> association. This is where you manage your Eldsäl profile information and subscriptions for membership and house card.</p>
-            <p>We plan to include other features in the future, as booking of the Eldsäl house, links to relevant platforms and information, but for now, enjoy! ❤️</p>
-
+            <p>This is the member web for the <a href="https://eldsal.se">Eldsäl</a> association. This is where you manage your Eldsäl profile information and membership subscription.</p>
+            <div className="alert alert-warning mt-3">
+                From June 1, 2022, Eldsäl uses a new membership model. There will no longer be two subscriptions (membership and house card), but only one membership fee, which is paid monthly.
+            </div>
             <h5>Your membership status</h5>
             {displayStatus()}
             <p className="mt-4">For questions regarding the member web, please send an email to <a href={"mailto:" + process.env.REACT_APP_WEBMASTER_EMAIL}>{process.env.REACT_APP_WEBMASTER_EMAIL}</a>.</p>

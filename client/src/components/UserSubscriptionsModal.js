@@ -171,16 +171,16 @@ export const UserSubscriptionsModal = ({ user, hideModal }) => {
                                     Membership
                                 </td>
                                 <td>
-                                    {displaySubscriptionList("membfee", user.membfee_subscriptions)}
+                                    {displaySubscriptionList("housecard", user.housecard_subscriptions)}
 
                                 </td>
                             </tr>
                             <tr>
                                 <td>
-                                    Housecard
+                                    Membership (Retired model)
                                 </td>
                                 <td>
-                                    {displaySubscriptionList("housecard", user.housecard_subscriptions)}
+                                    {displaySubscriptionList("membfee", user.membfee_subscriptions)}
 
                                 </td>
                             </tr>

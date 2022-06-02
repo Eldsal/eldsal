@@ -49,11 +49,6 @@ export const UserModal = ({ user, hideModal }) => {
         }
     };
 
-    const editMembershipPayment = () => {
-        setPaymentToEdit("membfee");
-        showPaymentModal();
-    }
-
     const editHousecardPayment = () => {
         setPaymentToEdit("housecard");
         showPaymentModal();
@@ -342,13 +337,8 @@ export const UserModal = ({ user, hideModal }) => {
                             </table>
                         </Col>
                         <Col>
-                            <h5>Subscriptions</h5>
-                            <div><strong>Membership fee</strong></div>
-                            <div>
-                                {formatFee(user.payments.membership)}<br /><button type="button" className="btn btn-outline-secondary btn-sm mt-2" onClick={() => editMembershipPayment()}>Edit</button>
-                            </div>
-
-                            <div className="mt-3"><strong>House card fee</strong></div>
+                            <h5>Subscription</h5>
+                            <div className="mt-3"><strong>Membership fee</strong></div>
                             <div>
                                 {formatFee(user.payments.housecard)}<br /><button type="button" className="btn btn-outline-secondary btn-sm mt-2" onClick={() => editHousecardPayment()}>Edit</button>
                             </div>

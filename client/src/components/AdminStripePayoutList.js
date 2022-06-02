@@ -60,7 +60,8 @@ export const AdminStripePayoutList = ({ x }) => {
                 id: 'type',
                 Header: 'Type',
                 accessor: (row, rowIndex) => getFeeFlavourName(row.flavour),
-                Filter: SelectColumnFilter
+                Filter: SelectColumnFilter,
+                filter: 'exact'
             },
             {
                 id: 'amount',
