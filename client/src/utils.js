@@ -8,10 +8,10 @@ export var fee_flavour_housecard = "housecard";
 export function getFeeFlavourName(flavour, upperCaseFirstChar = true) {
     switch (flavour) {
         case fee_flavour_membership:
-            return upperCaseFirstChar ? "Membership (Retired model)" : "membership";
+            return upperCaseFirstChar ? "Membership (Retired model)" : "membership (retired model)";
 
         case fee_flavour_housecard:
-            return upperCaseFirstChar ? "Membership" : "house card";
+            return upperCaseFirstChar ? "Membership" : "membership";
 
         default:
             return upperCaseFirstChar ? "(Unknown)" : "(unknown)";
