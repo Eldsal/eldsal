@@ -8,6 +8,10 @@
     "start": "node index.js",
     "heroku-postbuild": "cd client && npm install --only=dev && npm install && npm run build"
   },
+  "engines": {
+    "node": "~14.15.0",
+    "npm": "~6.14.8"
+  },
   "repository": "https://github.com/andefred/eldsal",
   "author": "Eldsäl AB",
   "license": "MIT",
