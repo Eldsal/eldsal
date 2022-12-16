@@ -82,7 +82,6 @@ const StartPage = () => {
         return (
             <>
                 { addRow("Profile", "/profile", profile)}
-                { addRow("Membership", "/subscription", houseCard)}
             </>
         );
     }
@@ -96,7 +95,7 @@ const StartPage = () => {
             <h1>Welcome to Eldsäl</h1>
             <p>This is the member web for the <a href="https://eldsal.se">Eldsäl</a> association. This is where you manage your Eldsäl profile information and membership subscription.</p>
             <div className="alert alert-warning mt-3">
-                From June 1, 2022, Eldsäl uses a new membership model. There will no longer be two subscriptions (membership and house card), but only one membership fee, which is paid monthly.
+                The Eldsäl membership fee has been removed, since we no longer have costs for the Eldsäl house. 
             </div>
             <h5>Your membership status</h5>
             {displayStatus()}

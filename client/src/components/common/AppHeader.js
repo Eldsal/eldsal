@@ -65,9 +65,9 @@ const AppHeader = (props) => {
                         <NavItem>
                             <NavLink href="/start/">Start</NavLink>
                         </NavItem>
-                        <NavItem>
+                        {false && <NavItem>
                             <NavLink href="/subscription">Subscription</NavLink>
-                        </NavItem>
+                        </NavItem>}
                         <NavItem>
                             <NavLink href="/contact">Contact</NavLink>
                         </NavItem>
