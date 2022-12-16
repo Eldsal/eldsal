@@ -301,10 +301,10 @@ const SubscriptionPage = () => {
             <p>This is where you manage your membership fee subscription.</p>
             <p>You must pay the membership fee to be a member of Eldsäl.</p>
             <div className="alert alert-warning mt-3">
-                From June 1, 2022, Eldsäl uses a new membership model. There will no longer be two subscriptions (membership and house card), but only one membership fee, which is paid monthly.
+                The Eldsäl membership fee has been removed, since we no longer have costs for the Eldsäl house. 
             </div>
-
-            {!showBuyHouseCard &&
+            
+            {false && !showBuyHouseCard &&
                 <>
                     <h5 className="mt-4">Your subscription</h5>
 
@@ -336,7 +336,7 @@ const SubscriptionPage = () => {
                 </>
             }
 
-            {showBuyHouseCard !== null && <>
+            {false && showBuyHouseCard !== null && <>
                 <h3>Buy membership subscription</h3>
                 <p>Select a subscription to sign up for.</p>
                 <div className="alert alert-info">
@@ -352,6 +352,7 @@ const SubscriptionPage = () => {
                 <button type="button" onClick={() => setShowBuyHouseCard(null)} className="btn btn-outline-secondary mt-3">Cancel</button>
             </>
             }
+            
 
         </AppContent>
     );
